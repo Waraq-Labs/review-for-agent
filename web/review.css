@@ -1,0 +1,208 @@
+:root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #1f6feb;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 12px 24px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.header h1 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.view-toggle {
+    display: flex;
+}
+
+.view-toggle button {
+    padding: 5px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.view-toggle button:first-child {
+    border-radius: 6px 0 0 6px;
+}
+
+.view-toggle button:last-child {
+    border-radius: 0 6px 6px 0;
+    border-left: none;
+}
+
+.view-toggle button:hover {
+    background: #30363d;
+}
+
+.view-toggle button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+#diff-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-muted);
+}
+
+.empty-state h2 {
+    font-size: 24px;
+    margin-bottom: 8px;
+    color: var(--text);
+}
+
+/* Dark theme overrides for diff2html */
+.d2h-wrapper {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.d2h-file-header {
+    background: var(--bg-secondary);
+    border-color: var(--border);
+    padding: 8px 12px;
+}
+
+.d2h-file-wrapper {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.d2h-tag {
+    background: #1f6feb22;
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+
+.d2h-file-name-wrapper {
+    color: var(--text);
+}
+
+.d2h-file-name {
+    color: var(--text);
+}
+
+.d2h-file-list-wrapper {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.d2h-file-list-header {
+    background: var(--bg-secondary);
+    border-bottom-color: var(--border);
+}
+
+.d2h-file-list-line {
+    border-bottom-color: var(--border);
+}
+
+.d2h-file-switch {
+    display: none;
+}
+
+.d2h-code-line,
+.d2h-code-side-line {
+    color: var(--text);
+    background: var(--bg);
+}
+
+.d2h-code-line-ctn {
+    color: var(--text);
+}
+
+.d2h-code-linenumber {
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-color: var(--border);
+}
+
+.d2h-code-side-linenumber {
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-color: var(--border);
+}
+
+/* Diff colors - dark theme */
+.d2h-del {
+    background-color: #3c1e1e;
+    border-color: #5c3030;
+}
+
+.d2h-ins {
+    background-color: #1e3c1e;
+    border-color: #305c30;
+}
+
+.d2h-del .d2h-code-line-ctn {
+    background: none;
+}
+
+.d2h-ins .d2h-code-line-ctn {
+    background: none;
+}
+
+.d2h-info {
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    border-color: var(--border);
+}
+
+.d2h-code-line-prefix {
+    color: var(--text-muted);
+}
+
+.d2h-file-diff .d2h-del.d2h-change {
+    background-color: #3c1e1e;
+}
+
+.d2h-file-diff .d2h-ins.d2h-change {
+    background-color: #1e3c1e;
+}
+
+/* Highlight.js dark overrides */
+.d2h-code-wrapper code,
+.d2h-code-side-line code {
+    background: transparent !important;
+}
+
+.hljs {
+    background: transparent !important;
+    color: var(--text) !important;
+}
