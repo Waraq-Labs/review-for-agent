@@ -179,6 +179,18 @@ body {
     background: none;
 }
 
+.d2h-del .d2h-code-line-ctn del {
+    background-color: #6b2e2e;
+    color: #e8c0c0;
+    text-decoration: none;
+}
+
+.d2h-ins .d2h-code-line-ctn ins {
+    background-color: #2e5e2e;
+    color: #c0e8c0;
+    text-decoration: none;
+}
+
 .d2h-info {
     background: var(--bg-secondary);
     color: var(--text-muted);

@@ -2,19 +2,21 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"runtime"
 )
 
 func main() {
-	if len(os.Args) < 2 || os.Args[1] != "start" {
-		fmt.Fprintf(os.Stderr, "Usage: reviews-for-agent start\n")
+	port, err := freePort()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to find free port: %v\n", err)
 		os.Exit(1)
 	}
 
-	addr := ":4000"
-	url := "http://localhost:4000/review"
+	addr := fmt.Sprintf(":%d", port)
+	url := fmt.Sprintf("http://localhost:%d/review", port)
 
 	fmt.Printf("Listening on localhost%s\n", addr)
 	fmt.Printf("Opening %s\n", url)
@@ -25,6 +27,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func freePort() (int, error) {
+	// Port 0 tells the OS to assign a random available port.
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
 func openBrowser(url string) {
