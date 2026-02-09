@@ -78,10 +78,13 @@ func handleComments(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Wrote %s\n", jsonPath)
 	fmt.Printf("Wrote %s\n", mdPath)
 
+	clipboardText := "review my comments on these changes in @" + mdPath
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"jsonPath": jsonPath,
-		"mdPath":   mdPath,
+		"jsonPath":      jsonPath,
+		"mdPath":        mdPath,
+		"clipboardText": clipboardText,
 	})
 }
 
@@ -112,6 +115,13 @@ func formatMarkdown(globalComment string, comments []Comment, diff string) strin
 
 	var sb strings.Builder
 	sb.WriteString("# Code Review Comments\n")
+	sb.WriteString("\n> **How to read this file:**\n")
+	sb.WriteString("> This file contains review comments on uncommitted changes in this repo.\n")
+	sb.WriteString("> Comments are grouped by file. Each comment includes a line or line range\n")
+	sb.WriteString("> reference and a quoted diff context snippet showing the relevant code.\n")
+	sb.WriteString("> File-level comments (not tied to a specific line) appear under a\n")
+	sb.WriteString("> \"(file-level)\" heading. A global comment, if present, appears at the top\n")
+	sb.WriteString("> before any file sections.\n")
 
 	if globalComment != "" {
 		sb.WriteString("\n" + globalComment + "\n")

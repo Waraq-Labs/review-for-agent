@@ -449,6 +449,7 @@ body {
 
 .submit-bar.submitted {
     background: var(--bg-secondary);
+    justify-content: flex-end;
 }
 
 .submit-bar .submit-btn:disabled {

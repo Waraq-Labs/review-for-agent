@@ -487,11 +487,19 @@ document.getElementById('submit-btn').addEventListener('click', function () {
         .then(function (data) {
             var submitBar = document.getElementById('submit-bar');
             var submitBtn = document.getElementById('submit-btn');
+            var commentCount = document.getElementById('comment-count');
+            var globalTextarea = document.getElementById('global-comment');
+
             submitBtn.disabled = true;
             submitBar.classList.add('submitted');
-            submitBar.innerHTML =
-                '<span class="comment-count">Review submitted — ' + data.mdPath + '</span>' +
-                '<button class="rfa-btn rfa-btn-save submit-btn" disabled>Submit Review</button>';
+            globalTextarea.style.display = 'none';
+            commentCount.textContent = 'Review submitted — ' + data.mdPath;
+
+            if (data.clipboardText && navigator.clipboard) {
+                navigator.clipboard.writeText(data.clipboardText).then(function () {
+                    commentCount.textContent = 'Review submitted — ' + data.mdPath + ' (copied to clipboard)';
+                }).catch(function () {});
+            }
         })
         .catch(function (err) {
             alert(err.message);
