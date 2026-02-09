@@ -417,10 +417,23 @@ body {
     border-top: 1px solid var(--border);
     padding: 12px 24px;
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 16px;
+    align-items: flex-end;
+    gap: 12px;
     z-index: 100;
+}
+
+.submit-bar-textarea {
+    flex: 1;
+    min-height: 40px;
+    max-height: 120px;
+    resize: vertical;
+}
+
+.submit-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
 }
 
 .comment-count {

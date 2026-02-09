@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -9,6 +10,9 @@ import (
 )
 
 func main() {
+	noOpen := flag.Bool("no-open", false, "suppress auto-opening the browser")
+	flag.Parse()
+
 	port, err := freePort()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to find free port: %v\n", err)
@@ -19,9 +23,11 @@ func main() {
 	url := fmt.Sprintf("http://localhost:%d/review", port)
 
 	fmt.Printf("Listening on localhost%s\n", addr)
-	fmt.Printf("Opening %s\n", url)
 
-	go openBrowser(url)
+	if !*noOpen {
+		fmt.Printf("Opening %s\n", url)
+		go openBrowser(url)
+	}
 
 	if err := startServer(addr); err != nil {
 		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)

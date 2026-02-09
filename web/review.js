@@ -457,12 +457,14 @@ fetch('/api/diff')
     });
 
 document.getElementById('submit-btn').addEventListener('click', function () {
-    if (comments.length === 0) {
+    var globalComment = document.getElementById('global-comment').value.trim();
+    if (comments.length === 0 && !globalComment) {
         alert('No comments to submit');
         return;
     }
     var payload = {
         diff: diffString,
+        globalComment: globalComment || '',
         comments: comments.map(function (c) {
             return {
                 file: c.file,

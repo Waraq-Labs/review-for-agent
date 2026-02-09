@@ -26,8 +26,9 @@ type DiffLine struct {
 }
 
 type SubmitRequest struct {
-	Diff     string    `json:"diff"`
-	Comments []Comment `json:"comments"`
+	Diff          string    `json:"diff"`
+	GlobalComment string    `json:"globalComment"`
+	Comments      []Comment `json:"comments"`
 }
 
 func handleComments(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +38,7 @@ func handleComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	comments := req.Comments
+	globalComment := req.GlobalComment
 	diff := req.Diff
 
 	hash := sha256.Sum256([]byte(time.Now().String()))
@@ -50,7 +52,14 @@ func handleComments(w http.ResponseWriter, r *http.Request) {
 	jsonPath := "rfa/comments_" + hashStr + ".json"
 	mdPath := "rfa/comments_" + hashStr + ".md"
 
-	jsonData, err := json.MarshalIndent(comments, "", "  ")
+	jsonOutput := struct {
+		GlobalComment string    `json:"globalComment,omitempty"`
+		Comments      []Comment `json:"comments"`
+	}{
+		GlobalComment: globalComment,
+		Comments:      comments,
+	}
+	jsonData, err := json.MarshalIndent(jsonOutput, "", "  ")
 	if err != nil {
 		http.Error(w, "failed to marshal JSON: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -60,7 +69,7 @@ func handleComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mdContent := formatMarkdown(comments, diff)
+	mdContent := formatMarkdown(globalComment, comments, diff)
 	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
 		http.Error(w, "failed to write markdown file: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -76,7 +85,7 @@ func handleComments(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func formatMarkdown(comments []Comment, diff string) string {
+func formatMarkdown(globalComment string, comments []Comment, diff string) string {
 	diffLines := parseDiffLines(diff)
 
 	type fileComments struct {
@@ -103,6 +112,10 @@ func formatMarkdown(comments []Comment, diff string) string {
 
 	var sb strings.Builder
 	sb.WriteString("# Code Review Comments\n")
+
+	if globalComment != "" {
+		sb.WriteString("\n" + globalComment + "\n")
+	}
 
 	for _, file := range ordered {
 		fc := grouped[file]

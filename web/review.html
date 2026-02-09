@@ -23,8 +23,11 @@
     </div>
 
     <div id="submit-bar" class="submit-bar">
-        <span id="comment-count" class="comment-count">0 comments</span>
-        <button id="submit-btn" class="rfa-btn rfa-btn-save submit-btn">Submit Review</button>
+        <textarea id="global-comment" class="rfa-comment-textarea submit-bar-textarea" placeholder="Overall review comment (optional)..." rows="2"></textarea>
+        <div class="submit-bar-actions">
+            <span id="comment-count" class="comment-count">0 comments</span>
+            <button id="submit-btn" class="rfa-btn rfa-btn-save submit-btn">Submit Review</button>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
