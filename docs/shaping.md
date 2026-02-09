@@ -7,7 +7,7 @@
 > The app will allow me to review the changes with Github style PR comments without having to open a PR on Github. It's a local only app.
 >
 > ```
-> $> reviews-for-agent start
+> $> review-for-agent start
 > Listening on localhost:4000
 > Opening localhost:4000/review
 >
@@ -146,7 +146,7 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 
 | # | Slice | Parts | Demo |
 |---|-------|-------|------|
-| V1 | Diff renders in browser | A1, A2, A3 | "Run `reviews-for-agent start`, browser opens, see GitHub-style diff of uncommitted changes" |
+| V1 | Diff renders in browser | A1, A2, A3 | "Run `review-for-agent start`, browser opens, see GitHub-style diff of uncommitted changes" |
 | V2 | Single-line comments | A4 (partial) | "Click a line number in the diff, type a comment, see it appear inline below the line" |
 | V3 | Range + file-level comments | A4 (remainder) | "Shift-click to select a range, add comment. Click file-level button, add comment" |
 | V4 | Submit + export | A5, A6 | "Click Submit Review, see JSON + MD files written to `rfa/`, open MD file and verify format" |
@@ -170,7 +170,7 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 - diff2html loaded from `cdnjs.cloudflare.com` — keeps the binary small
 - Unified view as default, with a toggle for split view
 
-**Demo:** Run `reviews-for-agent start` from a repo with uncommitted changes. Browser opens. You see the diff rendered in GitHub-style.
+**Demo:** Run `review-for-agent start` from a repo with uncommitted changes. Browser opens. You see the diff rendered in GitHub-style.
 
 ---
 

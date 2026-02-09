@@ -1,3 +1,3 @@
-module reviews-for-agent
+module review-for-agent
 
 go 1.23
