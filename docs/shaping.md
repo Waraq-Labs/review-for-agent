@@ -52,6 +52,7 @@
 | R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have |
 | R15 | MD output includes a preamble explaining the comment file structure so the agent knows how to read it | Must-have |
 | R16 | On submit, copy the MD file path to clipboard with prefix `review my comments on these changes in @<FILE_PATH>` (repo-root-relative path) | Must-have |
+| R17 | Server tries port 4000 first, then increments by 1 until a free port is found — allows re-running with `--no-open` and refreshing the already open page | Must-have |
 
 ---
 
@@ -61,7 +62,7 @@
 
 | Part | Mechanism | Flag |
 |------|-----------|:----:|
-| **A1** | **CLI entry point** — Go binary with `start` subcommand. Starts `net/http` server on `:4000`. Calls `open`/`xdg-open` to launch browser at `/review` unless `--no-open` flag is passed | |
+| **A1** | **CLI entry point** — Go binary with `start` subcommand. Tries port 4000 first, increments until a free port is found. Starts `net/http` server on the chosen port. Calls `open`/`xdg-open` to launch browser at `/review` unless `--no-open` flag is passed. Logs the actual port to terminal | |
 | **A2** | **Git diff engine** — `exec.Command("git", "diff", "HEAD")` captures unified diff as string, served via `GET /api/diff` | |
 | **A3** | **Diff renderer** — Single HTML page with diff2html JS/CSS from CDN. Fetches diff from `/api/diff`, renders split/unified view | |
 | **A4** | **Comment UI** — Custom JS layer on top of diff2html DOM. Click gutter line number → single-line comment. Shift-click second line → range. "Add file comment" button per file header. Comments render as inline cards below target line | |
@@ -89,6 +90,7 @@
 | R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have | ✅ |
 | R15 | MD output includes a preamble explaining the comment file structure so the agent knows how to read it | Must-have | ✅ |
 | R16 | On submit, copy the MD file path to clipboard with prefix `review my comments on these changes in @<FILE_PATH>` (repo-root-relative path) | Must-have | ✅ |
+| R17 | Server tries port 4000 first, then increments by 1 until a free port is found — allows re-running with `--no-open` and refreshing the already open page | Must-have | ✅ |
 
 ### Comment Data Model
 
@@ -155,7 +157,7 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 
 **What we build:**
 - Go project scaffolding with `go.mod`, main entry point
-- `start` subcommand that launches an HTTP server on `:4000`
+- `start` subcommand that tries port 4000 first, increments until a free port is found, launches HTTP server on the chosen port
 - `--no-open` flag to suppress auto-opening the browser
 - `GET /api/diff` endpoint that runs `git diff HEAD` and returns the unified diff as plain text
 - Single HTML page served at `/review` that fetches the diff and renders it with diff2html

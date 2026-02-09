@@ -35,14 +35,20 @@ func main() {
 	}
 }
 
+// freePort tries port 4000 first, then increments until a free port is found.
+// This provides a stable default while allowing multiple instances to coexist.
 func freePort() (int, error) {
-	// Port 0 tells the OS to assign a random available port.
-	l, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return 0, err
+	const startPort = 4000
+	const maxAttempts = 100
+	for port := startPort; port < startPort+maxAttempts; port++ {
+		l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err != nil {
+			continue
+		}
+		l.Close()
+		return port, nil
 	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
+	return 0, fmt.Errorf("no free port found in range %d–%d", startPort, startPort+maxAttempts-1)
 }
 
 func openBrowser(url string) {

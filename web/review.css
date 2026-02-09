@@ -130,6 +130,12 @@ body {
     border-bottom-color: var(--border);
 }
 
+.d2h-file-stats .d2h-lines-added,
+.d2h-file-stats .d2h-lines-deleted {
+    padding: 2px 8px;
+    margin-left: 4px;
+}
+
 .d2h-file-list-line {
     border-bottom-color: var(--border);
 }
