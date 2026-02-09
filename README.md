@@ -4,11 +4,7 @@ A local code review tool for giving structured, line-level feedback to AI coding
 
 Review uncommitted changes in a GitHub-style diff view, leave inline comments, and export a Markdown file you can feed directly back to your AI agent.
 
-![Screenshot placeholder](docs/screenshot.png)
-
-## Demo
-
-![Usage demo placeholder](docs/demo.gif)
+![review-for-agent UI showing a code review with inline comments on a diff](docs/usage.jpeg)
 
 ## Why
 
