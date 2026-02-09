@@ -206,3 +206,145 @@ body {
     background: transparent !important;
     color: var(--text) !important;
 }
+
+/* Line number gutter click affordance */
+.d2h-code-linenumber,
+.d2h-code-side-linenumber {
+    cursor: pointer;
+}
+
+.d2h-code-linenumber:hover,
+.d2h-code-side-linenumber:hover {
+    background: var(--accent) !important;
+    color: #fff !important;
+}
+
+/* Comment form */
+.rfa-comment-form-row {
+    background: var(--bg-secondary);
+}
+
+.rfa-comment-form-cell {
+    padding: 0 !important;
+    border: none !important;
+}
+
+.rfa-comment-form {
+    margin: 0 16px;
+    padding: 12px;
+    background: #1c2128;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.rfa-comment-form-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.rfa-comment-textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    resize: vertical;
+    outline: none;
+}
+
+.rfa-comment-textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.3);
+}
+
+.rfa-comment-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* Buttons */
+.rfa-btn {
+    padding: 5px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.rfa-btn-save {
+    background: #238636;
+    border-color: #2ea043;
+    color: #fff;
+}
+
+.rfa-btn-save:hover {
+    background: #2ea043;
+}
+
+.rfa-btn-cancel {
+    background: var(--bg-secondary);
+    color: var(--text);
+}
+
+.rfa-btn-cancel:hover {
+    background: #30363d;
+}
+
+.rfa-btn-delete {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 2px 8px;
+}
+
+.rfa-btn-delete:hover {
+    color: #f85149;
+}
+
+/* Comment card */
+.rfa-comment-row {
+    background: var(--bg-secondary);
+}
+
+.rfa-comment-cell {
+    padding: 0 !important;
+    border: none !important;
+}
+
+.rfa-comment-card {
+    margin: 0 16px 4px;
+    padding: 12px;
+    background: #1c2128;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.rfa-comment-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.rfa-comment-location {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.rfa-comment-body {
+    font-size: 14px;
+    color: var(--text);
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
