@@ -48,6 +48,8 @@
 | R10 | Built in Go, distributed as single binary | Must-have |
 | R11 | One review round per invocation — re-run for subsequent rounds | Must-have |
 | R12 | MD output includes diff context snippets so agent can locate each comment | Must-have |
+| R13 | Add a global review-level comment not tied to any file | Nice-to-have |
+| R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have |
 
 ---
 
@@ -57,12 +59,12 @@
 
 | Part | Mechanism | Flag |
 |------|-----------|:----:|
-| **A1** | **CLI entry point** — Go binary with `start` subcommand. Starts `net/http` server on `:4000`, calls `open`/`xdg-open` to launch browser at `/review` | |
+| **A1** | **CLI entry point** — Go binary with `start` subcommand. Starts `net/http` server on `:4000`. Calls `open`/`xdg-open` to launch browser at `/review` unless `--no-open` flag is passed | |
 | **A2** | **Git diff engine** — `exec.Command("git", "diff", "HEAD")` captures unified diff as string, served via `GET /api/diff` | |
 | **A3** | **Diff renderer** — Single HTML page with diff2html JS/CSS from CDN. Fetches diff from `/api/diff`, renders split/unified view | |
 | **A4** | **Comment UI** — Custom JS layer on top of diff2html DOM. Click gutter line number → single-line comment. Shift-click second line → range. "Add file comment" button per file header. Comments render as inline cards below target line | |
-| **A5** | **Submit endpoint** — `POST /api/comments` receives JSON array of comments. Server writes `rfa/comments_{hash}.json` and `rfa/comments_{hash}.md`. Returns paths in response. Server logs output paths to terminal | |
-| **A6** | **MD formatter** — Groups comments by file. Each comment includes line/range reference, quoted diff context snippet (from unified diff), and comment body. File-level comments under "(file-level)" sub-header | |
+| **A5** | **Submit endpoint** — `POST /api/comments` receives JSON payload with optional global comment and comment array. Server writes `rfa/comments_{hash}.json` and `rfa/comments_{hash}.md`. Returns paths in response. Server logs output paths to terminal | |
+| **A6** | **MD formatter** — Global comment rendered as plain text immediately after the heading. File comments grouped by file, each with line/range reference, quoted diff context snippet (from unified diff), and comment body. File-level comments under "(file-level)" sub-header | |
 
 ### Fit Check (R × A)
 
@@ -81,10 +83,17 @@
 | R10 | Built in Go, distributed as single binary | Must-have | ✅ |
 | R11 | One review round per invocation — re-run for subsequent rounds | Must-have | ✅ |
 | R12 | MD output includes diff context snippets so agent can locate each comment | Must-have | ✅ |
+| R13 | Add a global review-level comment not tied to any file | Nice-to-have | ✅ |
+| R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have | ✅ |
 
 ### Comment Data Model
 
 ```
+ReviewSubmission {
+  globalComment: string | null   // review-level comment, not tied to any file
+  comments:      Comment[]       // file/line comments
+}
+
 Comment {
   file:       string          // "src/api/handler.ts"
   startLine:  int | null      // null for file-level comments
@@ -98,6 +107,8 @@ Comment {
 
 ```markdown
 # Code Review Comments
+
+Overall, nice progress but a few things to address before this is ready.
 
 ## src/api/handler.ts
 
@@ -133,9 +144,10 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 **What we build:**
 - Go project scaffolding with `go.mod`, main entry point
 - `start` subcommand that launches an HTTP server on `:4000`
+- `--no-open` flag to suppress auto-opening the browser
 - `GET /api/diff` endpoint that runs `git diff HEAD` and returns the unified diff as plain text
 - Single HTML page served at `/review` that fetches the diff and renders it with diff2html
-- Auto-opens the browser on startup
+- Auto-opens the browser on startup (unless `--no-open` is passed)
 - diff2html JS/CSS loaded from CDN (no need to embed yet)
 
 **Key decisions:**
@@ -187,14 +199,15 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 ### V4: SUBMIT + EXPORT
 
 **What we build:**
-- "Submit Review" button fixed at the bottom/top of the page (visible comment count badge)
-- On click, POST all comments as JSON to `POST /api/comments`
+- Global comment textarea at the bottom of the page, near the Submit button — for review-level feedback not tied to any file
+- "Submit Review" button fixed at the bottom of the page (visible comment count badge)
+- On click, POST global comment + all comments as JSON to `POST /api/comments`
 - Go server receives the comments, generates a short hash (first 4 bytes of SHA256 of timestamp)
 - Writes `rfa/comments_{hash}.json` (raw structured data)
 - Writes `rfa/comments_{hash}.md` (agent-friendly format with diff context snippets)
 - Server logs the output paths to the terminal
 - Returns the file paths in the HTTP response, UI shows a success message with the paths
-- MD formatter: parses the unified diff to extract context lines around each comment's line reference
+- MD formatter: renders global comment at the top, then parses the unified diff to extract context lines around each comment's line reference
 
 **Key decisions:**
 - `rfa/` directory created automatically if it doesn't exist
@@ -202,4 +215,4 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 - After successful submit, disable the Submit button and show "Review submitted" state
 - Server does NOT shut down after submit — user closes it manually (Ctrl+C)
 
-**Demo:** Add a few comments (single-line, range, file-level). Click Submit Review. Check terminal — paths are logged. Open the MD file — comments are grouped by file with diff context snippets. Open the JSON — structured data.
+**Demo:** Add a few comments (single-line, range, file-level). Type a global comment. Click Submit Review. Check terminal — paths are logged. Open the MD file — global comment at the top, then comments grouped by file with diff context snippets. Open the JSON — structured data.
