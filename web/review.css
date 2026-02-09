@@ -146,6 +146,10 @@ body {
 
 .d2h-code-line-ctn {
     color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-width: calc(100vw - 200px);
+    display: inline-block;
 }
 
 .d2h-code-linenumber {
@@ -199,6 +203,7 @@ body {
 
 .d2h-code-line-prefix {
     color: var(--text-muted);
+    vertical-align: top;
 }
 
 .d2h-file-diff .d2h-del.d2h-change {
