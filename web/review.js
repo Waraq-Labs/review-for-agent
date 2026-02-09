@@ -4,6 +4,12 @@ let comments = [];
 let nextCommentId = 1;
 let rangeStart = null; // { row, file, line, side }
 
+function updateCommentCount() {
+    var countEl = document.getElementById('comment-count');
+    var n = comments.length;
+    countEl.textContent = n + (n === 1 ? ' comment' : ' comments');
+}
+
 function renderDiff() {
     const container = document.getElementById('diff-container');
     if (!diffString.trim()) {
@@ -183,6 +189,7 @@ function openFileCommentForm(fileWrapper, file) {
         comments.push(comment);
         formDiv.remove();
         renderFileComment(comment, fileWrapper);
+        updateCommentCount();
     });
 
     var cancelBtn = document.createElement('button');
@@ -227,6 +234,7 @@ function renderFileComment(comment, fileWrapper) {
     deleteBtn.addEventListener('click', function () {
         comments = comments.filter(function (c) { return c.id !== comment.id; });
         card.remove();
+        updateCommentCount();
     });
 
     header.appendChild(location);
@@ -298,6 +306,7 @@ function openCommentForm(anchorRow, file, startLine, endLine, side) {
         clearRangeHighlight();
         formRow.remove();
         renderComment(comment, anchorRow);
+        updateCommentCount();
     });
 
     var cancelBtn = document.createElement('button');
@@ -351,6 +360,7 @@ function renderComment(comment, anchorRow) {
     deleteBtn.addEventListener('click', function () {
         comments = comments.filter(function (c) { return c.id !== comment.id; });
         commentRow.remove();
+        updateCommentCount();
     });
 
     header.appendChild(location);
@@ -445,3 +455,43 @@ fetch('/api/diff')
             '<p>' + err.message + '</p>' +
             '</div>';
     });
+
+document.getElementById('submit-btn').addEventListener('click', function () {
+    if (comments.length === 0) {
+        alert('No comments to submit');
+        return;
+    }
+    var payload = {
+        diff: diffString,
+        comments: comments.map(function (c) {
+            return {
+                file: c.file,
+                startLine: c.startLine,
+                endLine: c.endLine,
+                side: c.side,
+                body: c.body,
+            };
+        }),
+    };
+    fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    })
+        .then(function (res) {
+            if (!res.ok) return res.text().then(function (t) { throw new Error(t); });
+            return res.json();
+        })
+        .then(function (data) {
+            var submitBar = document.getElementById('submit-bar');
+            var submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBar.classList.add('submitted');
+            submitBar.innerHTML =
+                '<span class="comment-count">Review submitted — ' + data.mdPath + '</span>' +
+                '<button class="rfa-btn rfa-btn-save submit-btn" disabled>Submit Review</button>';
+        })
+        .catch(function (err) {
+            alert(err.message);
+        });
+});

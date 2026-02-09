@@ -18,6 +18,7 @@ func startServer(addr string) error {
 
 	mux.HandleFunc("GET /review", handleReview)
 	mux.HandleFunc("GET /api/diff", handleDiff)
+	mux.HandleFunc("POST /api/comments", handleComments)
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.Redirect(w, r, "/review", http.StatusFound)

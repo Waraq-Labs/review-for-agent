@@ -70,6 +70,7 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     padding: 24px;
+    padding-bottom: 80px;
 }
 
 .empty-state {
@@ -392,4 +393,40 @@ body {
     background: #1c2128;
     border: 1px solid var(--border);
     border-radius: 6px;
+}
+
+/* Submit bar */
+.submit-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    z-index: 100;
+}
+
+.comment-count {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.submit-btn {
+    font-size: 14px;
+    padding: 8px 24px;
+}
+
+.submit-bar.submitted {
+    background: var(--bg-secondary);
+}
+
+.submit-bar .submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
