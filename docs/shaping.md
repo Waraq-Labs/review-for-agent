@@ -46,7 +46,7 @@
 | R8 | Output both JSON and agent-friendly MD formats | Must-have |
 | R9 | Use diff2html for diff rendering | Must-have |
 | R10 | Built in Go, distributed as single binary | Must-have |
-| R11 | One review round per invocation — re-run for subsequent rounds | Must-have |
+| R11 | One review round per invocation — enforced client-side (submit button disabled after first submit); server accepts repeated POSTs if page is refreshed | Must-have |
 | R12 | MD output includes diff context snippets so agent can locate each comment | Must-have |
 | R13 | Add a global review-level comment not tied to any file | Nice-to-have |
 | R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have |
@@ -84,7 +84,7 @@
 | R8 | Output both JSON and agent-friendly MD formats | Must-have | ✅ |
 | R9 | Use diff2html for diff rendering | Must-have | ✅ |
 | R10 | Built in Go, distributed as single binary | Must-have | ✅ |
-| R11 | One review round per invocation — re-run for subsequent rounds | Must-have | ✅ |
+| R11 | One review round per invocation — enforced client-side (submit button disabled after first submit); server accepts repeated POSTs if page is refreshed | Must-have | ✅ |
 | R12 | MD output includes diff context snippets so agent can locate each comment | Must-have | ✅ |
 | R13 | Add a global review-level comment not tied to any file | Nice-to-have | ✅ |
 | R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have | ✅ |

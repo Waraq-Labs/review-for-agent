@@ -80,6 +80,8 @@ function getLineNumber(td) {
 
 function attachLineClickHandlers() {
     var container = document.getElementById('diff-container');
+    if (container._rfaClickHandlerAttached) return;
+    container._rfaClickHandlerAttached = true;
     container.addEventListener('click', function (e) {
         var td = e.target.closest('.d2h-code-linenumber, .d2h-code-side-linenumber');
         if (!td) return;
@@ -396,6 +398,10 @@ function findAnchorRow(comment) {
         );
         for (var j = 0; j < lineNumberCells.length; j++) {
             if (getLineNumber(lineNumberCells[j]) === comment.startLine) {
+                if (currentView === 'side-by-side') {
+                    var cellSide = getSideForLineNumber(lineNumberCells[j]);
+                    if (cellSide !== comment.side) continue;
+                }
                 return lineNumberCells[j].closest('tr');
             }
         }
