@@ -50,6 +50,8 @@
 | R12 | MD output includes diff context snippets so agent can locate each comment | Must-have |
 | R13 | Add a global review-level comment not tied to any file | Nice-to-have |
 | R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have |
+| R15 | MD output includes a preamble explaining the comment file structure so the agent knows how to read it | Must-have |
+| R16 | On submit, copy the MD file path to clipboard with prefix `review my comments on these changes in @<FILE_PATH>` (repo-root-relative path) | Must-have |
 
 ---
 
@@ -63,8 +65,8 @@
 | **A2** | **Git diff engine** — `exec.Command("git", "diff", "HEAD")` captures unified diff as string, served via `GET /api/diff` | |
 | **A3** | **Diff renderer** — Single HTML page with diff2html JS/CSS from CDN. Fetches diff from `/api/diff`, renders split/unified view | |
 | **A4** | **Comment UI** — Custom JS layer on top of diff2html DOM. Click gutter line number → single-line comment. Shift-click second line → range. "Add file comment" button per file header. Comments render as inline cards below target line | |
-| **A5** | **Submit endpoint** — `POST /api/comments` receives JSON payload with optional global comment and comment array. Server writes `rfa/comments_{hash}.json` and `rfa/comments_{hash}.md`. Returns paths in response. Server logs output paths to terminal | |
-| **A6** | **MD formatter** — Global comment rendered as plain text immediately after the heading. File comments grouped by file, each with line/range reference, quoted diff context snippet (from unified diff), and comment body. File-level comments under "(file-level)" sub-header | |
+| **A5** | **Submit endpoint** — `POST /api/comments` receives JSON payload with optional global comment and comment array. Server writes `rfa/comments_{hash}.json` and `rfa/comments_{hash}.md`. Returns paths in response, including a `clipboardText` field containing `review my comments on these changes in @<repo-root-relative MD path>`. UI copies this to clipboard. Server logs output paths to terminal | |
+| **A6** | **MD formatter** — Opens with a preamble section explaining the file structure (global comment, per-file sections with line references, diff context snippets, file-level comments). Then global comment rendered as plain text. File comments grouped by file, each with line/range reference, quoted diff context snippet (from unified diff), and comment body. File-level comments under "(file-level)" sub-header | |
 
 ### Fit Check (R × A)
 
@@ -85,6 +87,8 @@
 | R12 | MD output includes diff context snippets so agent can locate each comment | Must-have | ✅ |
 | R13 | Add a global review-level comment not tied to any file | Nice-to-have | ✅ |
 | R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have | ✅ |
+| R15 | MD output includes a preamble explaining the comment file structure so the agent knows how to read it | Must-have | ✅ |
+| R16 | On submit, copy the MD file path to clipboard with prefix `review my comments on these changes in @<FILE_PATH>` (repo-root-relative path) | Must-have | ✅ |
 
 ### Comment Data Model
 
@@ -107,6 +111,14 @@ Comment {
 
 ```markdown
 # Code Review Comments
+
+> **How to read this file:**
+> This file contains review comments on uncommitted changes in this repo.
+> Comments are grouped by file. Each comment includes a line or line range
+> reference and a quoted diff context snippet showing the relevant code.
+> File-level comments (not tied to a specific line) appear under a
+> "(file-level)" heading. A global comment, if present, appears at the top
+> before any file sections.
 
 Overall, nice progress but a few things to address before this is ready.
 
@@ -204,15 +216,18 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 - On click, POST global comment + all comments as JSON to `POST /api/comments`
 - Go server receives the comments, generates a short hash (first 4 bytes of SHA256 of timestamp)
 - Writes `rfa/comments_{hash}.json` (raw structured data)
-- Writes `rfa/comments_{hash}.md` (agent-friendly format with diff context snippets)
+- Writes `rfa/comments_{hash}.md` (agent-friendly format with preamble + diff context snippets)
 - Server logs the output paths to the terminal
-- Returns the file paths in the HTTP response, UI shows a success message with the paths
-- MD formatter: renders global comment at the top, then parses the unified diff to extract context lines around each comment's line reference
+- Returns the file paths in the HTTP response, plus a `clipboardText` field: `review my comments on these changes in @<repo-root-relative MD path>`
+- UI copies `clipboardText` to the clipboard and shows a success message with the paths
+- MD formatter: opens with a preamble blockquote explaining the file structure, then renders global comment at the top, then parses the unified diff to extract context lines around each comment's line reference
 
 **Key decisions:**
 - `rfa/` directory created automatically if it doesn't exist
 - MD formatter needs access to the original unified diff to pull context snippets — server caches the diff output from V1
 - After successful submit, disable the Submit button and show "Review submitted" state
 - Server does NOT shut down after submit — user closes it manually (Ctrl+C)
+- Clipboard copy uses the browser `navigator.clipboard.writeText()` API
+- The MD preamble is a blockquote explaining: comments grouped by file, line/range references, diff context snippets, file-level comments, and global comment placement
 
-**Demo:** Add a few comments (single-line, range, file-level). Type a global comment. Click Submit Review. Check terminal — paths are logged. Open the MD file — global comment at the top, then comments grouped by file with diff context snippets. Open the JSON — structured data.
+**Demo:** Add a few comments (single-line, range, file-level). Type a global comment. Click Submit Review. Check terminal — paths are logged. Paste from clipboard — see `review my comments on these changes in @rfa/comments_5ae2.md`. Open the MD file — preamble at the top, then global comment, then comments grouped by file with diff context snippets. Open the JSON — structured data.
