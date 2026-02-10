@@ -18,6 +18,10 @@ type RangeAnchor = {
   side: Side;
 };
 
+function isPrimarySubmitHotkey(event: { key: string; metaKey: boolean; ctrlKey: boolean }): boolean {
+  return event.key === "Enter" && (event.metaKey || event.ctrlKey);
+}
+
 function formatLineRef(startLine: number | null, endLine: number | null): string {
   if (startLine === null) {
     return "(file-level)";
@@ -56,6 +60,19 @@ function InlineDraftAnnotation({
   onCancel: () => void;
 }) {
   const [body, setBody] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const handleSave = () => {
+    const trimmed = body.trim();
+    if (!trimmed) {
+      return;
+    }
+    onSave(trimmed);
+  };
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
 
   return (
     <div className="rfa-comment-form">
@@ -66,8 +83,16 @@ function InlineDraftAnnotation({
         className="rfa-comment-textarea"
         placeholder="Leave a comment..."
         rows={3}
+        ref={textareaRef}
         value={body}
         onChange={(event) => setBody(event.target.value)}
+        onKeyDown={(event) => {
+          if (!isPrimarySubmitHotkey(event)) {
+            return;
+          }
+          event.preventDefault();
+          handleSave();
+        }}
       />
       <div className="rfa-comment-actions">
         <button className="rfa-btn rfa-btn-cancel" onClick={onCancel} type="button">
@@ -75,13 +100,7 @@ function InlineDraftAnnotation({
         </button>
         <button
           className="rfa-btn rfa-btn-save"
-          onClick={() => {
-            const trimmed = body.trim();
-            if (!trimmed) {
-              return;
-            }
-            onSave(trimmed);
-          }}
+          onClick={handleSave}
           type="button"
         >
           Save
@@ -101,6 +120,19 @@ function FileLevelCommentForm({
   onCancel: () => void;
 }) {
   const [body, setBody] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const handleSave = () => {
+    const trimmed = body.trim();
+    if (!trimmed) {
+      return;
+    }
+    onSave(trimmed);
+  };
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
 
   return (
     <div className="rfa-file-comment-form-wrapper">
@@ -110,8 +142,16 @@ function FileLevelCommentForm({
           className="rfa-comment-textarea"
           placeholder="Leave a file-level comment..."
           rows={3}
+          ref={textareaRef}
           value={body}
           onChange={(event) => setBody(event.target.value)}
+          onKeyDown={(event) => {
+            if (!isPrimarySubmitHotkey(event)) {
+              return;
+            }
+            event.preventDefault();
+            handleSave();
+          }}
         />
         <div className="rfa-comment-actions">
           <button className="rfa-btn rfa-btn-cancel" onClick={onCancel} type="button">
@@ -119,13 +159,7 @@ function FileLevelCommentForm({
           </button>
           <button
             className="rfa-btn rfa-btn-save"
-            onClick={() => {
-              const trimmed = body.trim();
-              if (!trimmed) {
-                return;
-              }
-              onSave(trimmed);
-            }}
+            onClick={handleSave}
             type="button"
           >
             Save
@@ -556,6 +590,13 @@ export default function App() {
             ref={globalCommentRef}
             placeholder="Overall review comment (optional)..."
             rows={2}
+            onKeyDown={(event) => {
+              if (!isPrimarySubmitHotkey(event)) {
+                return;
+              }
+              event.preventDefault();
+              void handleSubmit();
+            }}
           />
         ) : null}
         <div className="submit-bar-actions">
