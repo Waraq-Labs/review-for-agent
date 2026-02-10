@@ -1,6 +1,6 @@
 import { FileDiff } from "@pierre/diffs/react";
 import { type DiffLineAnnotation, type FileDiffMetadata, type FileDiffOptions } from "@pierre/diffs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchDiff, submitComments } from "./api";
 import {
   annotationSideToCommentSide,
@@ -17,6 +17,8 @@ type RangeAnchor = {
   line: number;
   side: Side;
 };
+
+type CommentsByFile = Map<string, { line: ReviewComment[]; file: ReviewComment[] }>;
 
 function isPrimarySubmitHotkey(event: { key: string; metaKey: boolean; ctrlKey: boolean }): boolean {
   return event.key === "Enter" && (event.metaKey || event.ctrlKey);
@@ -48,6 +50,10 @@ function getFileStats(fileDiff: FileDiffMetadata): { additions: number; deletion
   }
 
   return { additions, deletions };
+}
+
+function getCommentsForFile(commentsByFile: CommentsByFile, file: string) {
+  return commentsByFile.get(file) ?? { line: [], file: [] };
 }
 
 function InlineDraftAnnotation({
@@ -170,6 +176,213 @@ function FileLevelCommentForm({
   );
 }
 
+const FileListItem = memo(function FileListItem({
+  fileKey,
+  file,
+  additions,
+  deletions,
+  onScrollTo,
+}: {
+  fileKey: string;
+  file: string;
+  additions: number;
+  deletions: number;
+  onScrollTo: (key: string) => void;
+}) {
+  const handleClick = useCallback(() => onScrollTo(fileKey), [fileKey, onScrollTo]);
+
+  return (
+    <button
+      className="rfa-file-list-item"
+      onClick={handleClick}
+      type="button"
+    >
+      <span className="rfa-file-list-name">{file}</span>
+      <span className="rfa-file-list-stats">
+        <span className="rfa-file-list-additions">+{additions}</span>
+        <span className="rfa-file-list-deletions">-{deletions}</span>
+      </span>
+    </button>
+  );
+});
+
+const FileSection = memo(function FileSection({
+  fileDiff,
+  fileKey,
+  file,
+  view,
+  submitted,
+  commentsByFile,
+  activeDraft,
+  fileDraftTarget,
+  rangeAnchor,
+  onLineClick,
+  onSaveLineDraft,
+  onCancelLineDraft,
+  onSaveFileComment,
+  onRemoveComment,
+  onToggleFileDraft,
+  sectionRef,
+}: {
+  fileDiff: FileDiffMetadata;
+  fileKey: string;
+  file: string;
+  view: DiffView;
+  submitted: boolean;
+  commentsByFile: CommentsByFile;
+  activeDraft: DraftComment | null;
+  fileDraftTarget: string | null;
+  rangeAnchor: RangeAnchor | null;
+  onLineClick: (file: string, lineNumber: number, side: Side, shiftKey: boolean, rangeAnchor: RangeAnchor | null) => void;
+  onSaveLineDraft: (body: string) => void;
+  onCancelLineDraft: () => void;
+  onSaveFileComment: (file: string, body: string) => void;
+  onRemoveComment: (id: number) => void;
+  onToggleFileDraft: (file: string) => void;
+  sectionRef: (key: string, node: HTMLDivElement | null) => void;
+}) {
+  const isDeletedFile = fileDiff.type === "deleted";
+  const { line: fileLineComments, file: fileLevelComments } = getCommentsForFile(commentsByFile, file);
+  const draftForFile = activeDraft && activeDraft.file === file ? activeDraft : null;
+
+  const lineAnnotations = createLineAnnotations(
+    fileLineComments,
+    draftForFile,
+  ) as DiffLineAnnotation<AnnotationMeta>[];
+
+  const options: FileDiffOptions<AnnotationMeta> = useMemo(() => ({
+    diffStyle: view,
+    theme: "github-dark",
+    themeType: "dark",
+    enableLineSelection: true,
+    onLineNumberClick: (props) => {
+      if (submitted) {
+        return;
+      }
+
+      const clickedLine = props.lineNumber;
+      const clickedSide = annotationSideToCommentSide(props.annotationSide);
+      onLineClick(file, clickedLine, clickedSide, props.event.shiftKey, rangeAnchor);
+    },
+  }), [view, submitted, file, onLineClick, rangeAnchor]);
+
+  const handleToggleFileDraft = useCallback(() => onToggleFileDraft(file), [file, onToggleFileDraft]);
+  const handleCancelFileDraft = useCallback(() => onToggleFileDraft(file), [file, onToggleFileDraft]);
+  const handleSaveFileComment = useCallback((body: string) => onSaveFileComment(file, body), [file, onSaveFileComment]);
+
+  const renderFileLevelMetadata = () => (
+    <div className="rfa-header-metadata">
+      <div className="rfa-header-actions">
+        <button
+          className="rfa-btn rfa-file-comment-btn"
+          onClick={handleToggleFileDraft}
+          type="button"
+        >
+          + File comment
+        </button>
+      </div>
+
+      {fileDraftTarget === file && !submitted ? (
+        <div className="rfa-header-form-row">
+          <FileLevelCommentForm
+            file={file}
+            onCancel={handleCancelFileDraft}
+            onSave={handleSaveFileComment}
+          />
+        </div>
+      ) : null}
+
+      {fileLevelComments.length > 0 ? (
+        <div className="rfa-header-comments">
+          {fileLevelComments.map((comment) => (
+            <div className="rfa-file-comment-card" data-comment-id={comment.id} key={comment.id}>
+              <div className="rfa-comment-header">
+                <span className="rfa-comment-location">{comment.file} - (file-level)</span>
+                <button
+                  className="rfa-btn rfa-btn-delete"
+                  onClick={() => onRemoveComment(comment.id)}
+                  type="button"
+                >
+                  Delete
+                </button>
+              </div>
+              <div className="rfa-comment-body">{comment.body}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  if (isDeletedFile) {
+    return (
+      <div
+        className="rfa-file-diff"
+        ref={(node) => sectionRef(fileKey, node)}
+      >
+        <div className="rfa-removed-file-card">
+          <div className="rfa-removed-file-header">
+            <span className="rfa-removed-file-name">{file}</span>
+            <span className="rfa-removed-file-badge">Removed</span>
+          </div>
+          <p className="rfa-removed-file-note">This file was removed.</p>
+          {renderFileLevelMetadata()}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rfa-file-diff"
+      ref={(node) => sectionRef(fileKey, node)}
+    >
+      <div className="rfa-file-level-panel">{renderFileLevelMetadata()}</div>
+      <FileDiff<AnnotationMeta>
+        fileDiff={fileDiff}
+        options={options}
+        lineAnnotations={lineAnnotations}
+        selectedLines={createSelectedRange(draftForFile)}
+        renderAnnotation={(annotation) => {
+          const metadata = annotation.metadata;
+          if (!metadata) {
+            return null;
+          }
+
+          if (metadata.kind === "draft") {
+            return (
+              <InlineDraftAnnotation
+                draft={metadata.draft}
+                onCancel={onCancelLineDraft}
+                onSave={onSaveLineDraft}
+              />
+            );
+          }
+
+          const comment = metadata.comment;
+          return (
+            <div className="rfa-comment-card" data-comment-id={comment.id}>
+              <div className="rfa-comment-header">
+                <span className="rfa-comment-location">
+                  {comment.file} - {formatLineRef(comment.startLine, comment.endLine)}
+                </span>
+                <button
+                  className="rfa-btn rfa-btn-delete"
+                  onClick={() => onRemoveComment(comment.id)}
+                  type="button"
+                >
+                  Delete
+                </button>
+              </div>
+              <div className="rfa-comment-body">{comment.body}</div>
+            </div>
+          );
+        }}
+      />
+    </div>
+  );
+});
+
 export default function App() {
   const [diffString, setDiffString] = useState("");
   const [view, setView] = useState<DiffView>("unified");
@@ -177,14 +390,16 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const [comments, setComments] = useState<ReviewComment[]>([]);
-  const [nextCommentId, setNextCommentId] = useState(1);
+  const nextCommentIdRef = useRef(1);
 
   const [rangeAnchor, setRangeAnchor] = useState<RangeAnchor | null>(null);
   const [activeDraft, setActiveDraft] = useState<DraftComment | null>(null);
+  const activeDraftRef = useRef<DraftComment | null>(null);
+  activeDraftRef.current = activeDraft;
   const [fileDraftTarget, setFileDraftTarget] = useState<string | null>(null);
 
   const [submitted, setSubmitted] = useState(false);
-  const [submitText, setSubmitText] = useState("0 comments");
+  const [submittedText, setSubmittedText] = useState<string | null>(null);
   const fileSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const globalCommentRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -215,12 +430,13 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const count = comments.length;
-    if (!submitted) {
-      setSubmitText(`${count} ${count === 1 ? "comment" : "comments"}`);
+  const submitText = useMemo(() => {
+    if (submittedText !== null) {
+      return submittedText;
     }
-  }, [comments, submitted]);
+    const count = comments.length;
+    return `${count} ${count === 1 ? "comment" : "comments"}`;
+  }, [comments.length, submittedText]);
 
   const files = useMemo(() => parsePatchToFileDiffs(diffString), [diffString]);
   const fileSummaries = useMemo(
@@ -238,49 +454,112 @@ export default function App() {
     [files],
   );
 
-  const saveLineDraft = (body: string) => {
-    if (!activeDraft) {
+  const commentsByFile = useMemo(() => {
+    const map: CommentsByFile = new Map();
+    for (const comment of comments) {
+      let entry = map.get(comment.file);
+      if (!entry) {
+        entry = { line: [], file: [] };
+        map.set(comment.file, entry);
+      }
+      if (comment.startLine !== null) {
+        entry.line.push(comment);
+      } else {
+        entry.file.push(comment);
+      }
+    }
+    return map;
+  }, [comments]);
+
+  const saveLineDraft = useCallback((body: string) => {
+    const draft = activeDraftRef.current;
+    if (!draft) {
       return;
     }
 
-    const comment: ReviewComment = {
-      id: nextCommentId,
-      file: activeDraft.file,
-      startLine: activeDraft.startLine,
-      endLine: activeDraft.endLine,
-      side: activeDraft.side,
+    const id = nextCommentIdRef.current++;
+    setComments((previous) => [...previous, {
+      id,
+      file: draft.file,
+      startLine: draft.startLine,
+      endLine: draft.endLine,
+      side: draft.side,
       body,
-    };
-
-    setComments((previous) => [...previous, comment]);
-    setNextCommentId((current) => current + 1);
+    }]);
     setActiveDraft(null);
     setRangeAnchor(null);
-  };
+  }, []);
 
-  const cancelLineDraft = () => {
+  const cancelLineDraft = useCallback(() => {
     setActiveDraft(null);
     setRangeAnchor(null);
-  };
+  }, []);
 
-  const saveFileComment = (file: string, body: string) => {
+  const saveFileComment = useCallback((file: string, body: string) => {
+    const id = nextCommentIdRef.current++;
     const comment: ReviewComment = {
-      id: nextCommentId,
+      id,
       file,
       startLine: null,
       endLine: null,
       side: "right",
       body,
     };
-
     setComments((previous) => [...previous, comment]);
-    setNextCommentId((current) => current + 1);
     setFileDraftTarget(null);
-  };
+  }, []);
 
-  const removeComment = (id: number) => {
+  const removeComment = useCallback((id: number) => {
     setComments((previous) => previous.filter((comment) => comment.id !== id));
-  };
+  }, []);
+
+  const onLineClick = useCallback((file: string, lineNumber: number, side: Side, shiftKey: boolean, currentRangeAnchor: RangeAnchor | null) => {
+    setFileDraftTarget(null);
+
+    if (shiftKey && currentRangeAnchor && currentRangeAnchor.file === file) {
+      const startLine = Math.min(currentRangeAnchor.line, lineNumber);
+      const endLine = Math.max(currentRangeAnchor.line, lineNumber);
+
+      setActiveDraft({
+        file,
+        startLine,
+        endLine,
+        side,
+      });
+      setRangeAnchor(null);
+      return;
+    }
+
+    setRangeAnchor({
+      file,
+      line: lineNumber,
+      side,
+    });
+    setActiveDraft({
+      file,
+      startLine: lineNumber,
+      endLine: lineNumber,
+      side,
+    });
+  }, []);
+
+  const onToggleFileDraft = useCallback((file: string) => {
+    setActiveDraft(null);
+    setRangeAnchor(null);
+    setFileDraftTarget((current) => (current === file ? null : file));
+  }, []);
+
+  const onScrollTo = useCallback((key: string) => {
+    const section = fileSectionRefs.current[key];
+    if (!section) {
+      return;
+    }
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const sectionRef = useCallback((key: string, node: HTMLDivElement | null) => {
+    fileSectionRefs.current[key] = node;
+  }, []);
 
   const handleSubmit = async () => {
     const trimmedGlobal = globalCommentRef.current?.value.trim() ?? "";
@@ -305,12 +584,12 @@ export default function App() {
       });
 
       setSubmitted(true);
-      setSubmitText(`Review submitted - ${response.mdPath}`);
+      setSubmittedText(`Review submitted - ${response.mdPath}`);
 
       if (response.clipboardText && navigator.clipboard) {
         try {
           await navigator.clipboard.writeText(response.clipboardText);
-          setSubmitText(`Review submitted - ${response.mdPath} (copied to clipboard)`);
+          setSubmittedText(`Review submitted - ${response.mdPath} (copied to clipboard)`);
         } catch {
           // Ignore clipboard failures.
         }
@@ -373,210 +652,41 @@ export default function App() {
         <div className="diff-container">
           <div className="rfa-file-list" aria-label="Changed files">
             {fileSummaries.map((summary) => (
-              <button
-                className="rfa-file-list-item"
+              <FileListItem
                 key={summary.key}
-                onClick={() => {
-                  const section = fileSectionRefs.current[summary.key];
-                  if (!section) {
-                    return;
-                  }
-                  section.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-                type="button"
-              >
-                <span className="rfa-file-list-name">{summary.file}</span>
-                <span className="rfa-file-list-stats">
-                  <span className="rfa-file-list-additions">+{summary.additions}</span>
-                  <span className="rfa-file-list-deletions">-{summary.deletions}</span>
-                </span>
-              </button>
+                fileKey={summary.key}
+                file={summary.file}
+                additions={summary.additions}
+                deletions={summary.deletions}
+                onScrollTo={onScrollTo}
+              />
             ))}
           </div>
 
           {files.map((fileDiff, index) => {
             const file = getFileName(fileDiff);
             const fileKey = `${file}-${index}`;
-            const isDeletedFile = fileDiff.type === "deleted";
-            const fileLineComments = comments.filter(
-              (comment) => comment.file === file && comment.startLine !== null,
-            );
-            const fileLevelComments = comments.filter(
-              (comment) => comment.file === file && comment.startLine === null,
-            );
-            const draftForFile = activeDraft && activeDraft.file === file ? activeDraft : null;
-
-            const lineAnnotations = createLineAnnotations(
-              fileLineComments,
-              draftForFile,
-            ) as DiffLineAnnotation<AnnotationMeta>[];
-
-            const options: FileDiffOptions<AnnotationMeta> = {
-              diffStyle: view,
-              theme: "github-dark",
-              themeType: "dark",
-              enableLineSelection: true,
-              onLineNumberClick: (props) => {
-                if (submitted) {
-                  return;
-                }
-
-                const clickedLine = props.lineNumber;
-                const clickedSide = annotationSideToCommentSide(props.annotationSide);
-
-                setFileDraftTarget(null);
-
-                if (props.event.shiftKey && rangeAnchor && rangeAnchor.file === file) {
-                  const startLine = Math.min(rangeAnchor.line, clickedLine);
-                  const endLine = Math.max(rangeAnchor.line, clickedLine);
-
-                  setActiveDraft({
-                    file,
-                    startLine,
-                    endLine,
-                    side: clickedSide,
-                  });
-                  setRangeAnchor(null);
-                  return;
-                }
-
-                setRangeAnchor({
-                  file,
-                  line: clickedLine,
-                  side: clickedSide,
-                });
-                setActiveDraft({
-                  file,
-                  startLine: clickedLine,
-                  endLine: clickedLine,
-                  side: clickedSide,
-                });
-              },
-            };
-
-            const renderFileLevelMetadata = () => (
-              <div className="rfa-header-metadata">
-                <div className="rfa-header-actions">
-                  <button
-                    className="rfa-btn rfa-file-comment-btn"
-                    onClick={() => {
-                      if (submitted) {
-                        return;
-                      }
-                      setActiveDraft(null);
-                      setRangeAnchor(null);
-                      setFileDraftTarget((current) => (current === file ? null : file));
-                    }}
-                    type="button"
-                  >
-                    + File comment
-                  </button>
-                </div>
-
-                {fileDraftTarget === file && !submitted ? (
-                  <div className="rfa-header-form-row">
-                    <FileLevelCommentForm
-                      file={file}
-                      onCancel={() => setFileDraftTarget(null)}
-                      onSave={(body) => saveFileComment(file, body)}
-                    />
-                  </div>
-                ) : null}
-
-                {fileLevelComments.length > 0 ? (
-                  <div className="rfa-header-comments">
-                    {fileLevelComments.map((comment) => (
-                      <div className="rfa-file-comment-card" data-comment-id={comment.id} key={comment.id}>
-                        <div className="rfa-comment-header">
-                          <span className="rfa-comment-location">{comment.file} - (file-level)</span>
-                          <button
-                            className="rfa-btn rfa-btn-delete"
-                            onClick={() => removeComment(comment.id)}
-                            type="button"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                        <div className="rfa-comment-body">{comment.body}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            );
-
-            if (isDeletedFile) {
-              return (
-                <div
-                  className="rfa-file-diff"
-                  key={fileKey}
-                  ref={(node) => {
-                    fileSectionRefs.current[fileKey] = node;
-                  }}
-                >
-                  <div className="rfa-removed-file-card">
-                    <div className="rfa-removed-file-header">
-                      <span className="rfa-removed-file-name">{file}</span>
-                      <span className="rfa-removed-file-badge">Removed</span>
-                    </div>
-                    <p className="rfa-removed-file-note">This file was removed.</p>
-                    {renderFileLevelMetadata()}
-                  </div>
-                </div>
-              );
-            }
 
             return (
-              <div
-                className="rfa-file-diff"
+              <FileSection
                 key={fileKey}
-                ref={(node) => {
-                  fileSectionRefs.current[fileKey] = node;
-                }}
-              >
-                <div className="rfa-file-level-panel">{renderFileLevelMetadata()}</div>
-                <FileDiff<AnnotationMeta>
-                  fileDiff={fileDiff}
-                  options={options}
-                  lineAnnotations={lineAnnotations}
-                  selectedLines={createSelectedRange(draftForFile)}
-                  renderAnnotation={(annotation) => {
-                    const metadata = annotation.metadata;
-                    if (!metadata) {
-                      return null;
-                    }
-
-                    if (metadata.kind === "draft") {
-                      return (
-                        <InlineDraftAnnotation
-                          draft={metadata.draft}
-                          onCancel={cancelLineDraft}
-                          onSave={saveLineDraft}
-                        />
-                      );
-                    }
-
-                    const comment = metadata.comment;
-                    return (
-                      <div className="rfa-comment-card" data-comment-id={comment.id}>
-                        <div className="rfa-comment-header">
-                          <span className="rfa-comment-location">
-                            {comment.file} - {formatLineRef(comment.startLine, comment.endLine)}
-                          </span>
-                          <button
-                            className="rfa-btn rfa-btn-delete"
-                            onClick={() => removeComment(comment.id)}
-                            type="button"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                        <div className="rfa-comment-body">{comment.body}</div>
-                      </div>
-                    );
-                  }}
-                />
-              </div>
+                fileDiff={fileDiff}
+                fileKey={fileKey}
+                file={file}
+                view={view}
+                submitted={submitted}
+                commentsByFile={commentsByFile}
+                activeDraft={activeDraft}
+                fileDraftTarget={fileDraftTarget}
+                rangeAnchor={rangeAnchor}
+                onLineClick={onLineClick}
+                onSaveLineDraft={saveLineDraft}
+                onCancelLineDraft={cancelLineDraft}
+                onSaveFileComment={saveFileComment}
+                onRemoveComment={removeComment}
+                onToggleFileDraft={onToggleFileDraft}
+                sectionRef={sectionRef}
+              />
             );
           })}
         </div>
