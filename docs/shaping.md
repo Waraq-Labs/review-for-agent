@@ -44,7 +44,7 @@
 | R6 | Diff is always computed against HEAD (uncommitted changes only) | Must-have |
 | R7 | Auto-open browser when server starts | Nice-to-have |
 | R8 | Output both JSON and agent-friendly MD formats | Must-have |
-| R9 | Use diff2html for diff rendering | Must-have |
+| R9 | Use @pierre/diffs for diff rendering | Must-have |
 | R10 | Built in Go, distributed as single binary | Must-have |
 | R11 | One review round per invocation — enforced client-side (submit button disabled after first submit); server accepts repeated POSTs if page is refreshed | Must-have |
 | R12 | MD output includes diff context snippets so agent can locate each comment | Must-have |
@@ -56,7 +56,7 @@
 
 ---
 
-## Selected Shape: A — Local Go HTTP server with diff2html frontend
+## Selected Shape: A — Local Go HTTP server with embedded Vite frontend using @pierre/diffs
 
 ### Parts
 
@@ -64,8 +64,8 @@
 |------|-----------|:----:|
 | **A1** | **CLI entry point** — Go binary with `start` subcommand. Tries port 4000 first, increments until a free port is found. Starts `net/http` server on the chosen port. Calls `open`/`xdg-open` to launch browser at `/review` unless `--no-open` flag is passed. Logs the actual port to terminal | |
 | **A2** | **Git diff engine** — `exec.Command("git", "diff", "HEAD")` captures unified diff as string, served via `GET /api/diff` | |
-| **A3** | **Diff renderer** — Single HTML page with diff2html JS/CSS from CDN. Fetches diff from `/api/diff`, renders split/unified view | |
-| **A4** | **Comment UI** — Custom JS layer on top of diff2html DOM. Click gutter line number → single-line comment. Shift-click second line → range. "Add file comment" button per file header. Comments render as inline cards below target line | |
+| **A3** | **Diff renderer** — React + TypeScript frontend (built by Vite) renders parsed patch files with `@pierre/diffs`, supports unified/split view toggle | |
+| **A4** | **Comment UI** — React state + `@pierre/diffs` line selection/annotation APIs for single-line and range comments, plus header metadata actions for file-level comments | |
 | **A5** | **Submit endpoint** — `POST /api/comments` receives JSON payload with optional global comment and comment array. Server writes `rfa/comments_{hash}.json` and `rfa/comments_{hash}.md`. Returns paths in response, including a `clipboardText` field containing `review my comments on these changes in @<repo-root-relative MD path>`. UI copies this to clipboard. Server logs output paths to terminal | |
 | **A6** | **MD formatter** — Opens with a preamble section explaining the file structure (global comment, per-file sections with line references, diff context snippets, file-level comments). Then global comment rendered as plain text. File comments grouped by file, each with line/range reference, quoted diff context snippet (from unified diff), and comment body. File-level comments under "(file-level)" sub-header | |
 
@@ -82,7 +82,7 @@
 | R6 | Diff is always computed against HEAD (uncommitted changes only) | Must-have | ✅ |
 | R7 | Auto-open browser when server starts | Nice-to-have | ✅ |
 | R8 | Output both JSON and agent-friendly MD formats | Must-have | ✅ |
-| R9 | Use diff2html for diff rendering | Must-have | ✅ |
+| R9 | Use @pierre/diffs for diff rendering | Must-have | ✅ |
 | R10 | Built in Go, distributed as single binary | Must-have | ✅ |
 | R11 | One review round per invocation — enforced client-side (submit button disabled after first submit); server accepts repeated POSTs if page is refreshed | Must-have | ✅ |
 | R12 | MD output includes diff context snippets so agent can locate each comment | Must-have | ✅ |
@@ -160,14 +160,14 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 - `start` subcommand that tries port 4000 first, increments until a free port is found, launches HTTP server on the chosen port
 - `--no-open` flag to suppress auto-opening the browser
 - `GET /api/diff` endpoint that runs `git diff HEAD` and returns the unified diff as plain text
-- Single HTML page served at `/review` that fetches the diff and renders it with diff2html
+- Single frontend app served at `/review` that fetches the diff and renders it with `@pierre/diffs`
 - Auto-opens the browser on startup (unless `--no-open` is passed)
-- diff2html JS/CSS loaded from CDN (no need to embed yet)
+- Frontend built with Vite into `frontend/build`, embedded into the Go binary via `go:embed`
 
 **Key decisions:**
 - Use `net/http` from stdlib (no framework needed)
-- HTML/JS/CSS served as embedded files via Go's `embed` package
-- diff2html loaded from `cdnjs.cloudflare.com` — keeps the binary small
+- Serve Vite-built static assets from embedded `frontend/build` via Go's `embed` package
+- Frontend stack is React + TypeScript with pnpm package management
 - Unified view as default, with a toggle for split view
 
 **Demo:** Run `review-for-agent start` from a repo with uncommitted changes. Browser opens. You see the diff rendered in GitHub-style.
@@ -177,16 +177,16 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 ### V2: SINGLE-LINE COMMENTS
 
 **What we build:**
-- JS click handler on diff2html's line number gutter elements
-- When a line is clicked, inject a comment form (textarea + Save/Cancel buttons) below the target row
-- On Save, store the comment in a client-side JS array
-- Render saved comments as styled cards below their target line (similar to GitHub PR comments)
+- React `onLineNumberClick` handlers from `@pierre/diffs` capture line intent
+- When a line is clicked, render an inline annotation form (textarea + Save/Cancel)
+- On Save, store the comment in client-side React state
+- Render saved comments as annotation cards at their target line
 - Comment card shows: file path, line number, comment body, and a Delete button
 
 **Key decisions:**
 - Comments stored entirely client-side until Submit (V4)
-- diff2html renders `<td>` elements with line numbers — attach click handlers via event delegation on the diff container
-- Each comment card is a `<div>` injected as a new `<tr>` after the target line's `<tr>`
+- `@pierre/diffs` provides line click callbacks and annotation slots so no manual DOM traversal is required
+- Adapter layer maps API-level sides (`additions`/`deletions`) to payload sides (`right`/`left`)
 
 **Demo:** Click a line number in the diff. A form appears. Type a comment, click Save. The comment renders inline. Delete it. Add another.
 
@@ -195,11 +195,11 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 ### V3: RANGE + FILE-LEVEL COMMENTS
 
 **What we build:**
-- Range selection: click first line number, shift-click second line number → highlights the range, opens comment form
-- Visual highlight on the selected range (background color on those rows)
-- File-level comment: inject an "Add file comment" button into each diff2html file header
+- Range selection: click first line number, shift-click second line number → selects range and opens inline comment form
+- Visual highlight on selected range via `selectedLines` in `@pierre/diffs`
+- File-level comment: render an "Add file comment" action in header metadata
 - Clicking it opens a comment form not tied to any line
-- File-level comments rendered at the top of the file's diff section
+- File-level comments rendered in the same file header metadata area
 
 **Key decisions:**
 - Track "first click" state in JS — if shift is held on second click, treat as range

@@ -14,19 +14,19 @@ After an AI coding agent edits files in your repo, there's no lightweight way to
 
 ## Features
 
-- **GitHub-style diff view** — unified or split, powered by [diff2html](https://diff2html.xyz/)
+- **GitHub-style diff view** — unified or split, powered by [@pierre/diffs](https://diffs.com/)
 - **Inline comments** — click a line number to comment; shift-click to select a range
 - **File-level comments** — feedback on an entire file, not tied to a specific line
 - **Global review comment** — overall feedback at the top of the review
 - **Structured export** — outputs both JSON and agent-friendly Markdown with diff context snippets
 - **Clipboard integration** — copies `review my comments on these changes in @rfa/comments_xxxx.md` to your clipboard on submit, ready to paste into your agent
-- **Local** — no GitHub, no PRs. Single binary, runs from your repo root. Requires internet only for CDN-hosted frontend assets (diff2html, highlight.js)
+- **Local** — no GitHub, no PRs. Single binary runtime with embedded frontend bundle
 
 ## Install
 
 ### From source
 
-Requires [Go 1.23+](https://go.dev/dl/).
+Requires [Go 1.23+](https://go.dev/dl/), Node.js, and pnpm.
 
 ```sh
 go install github.com/Waraq-Labs/review-for-agent@latest
@@ -37,8 +37,21 @@ go install github.com/Waraq-Labs/review-for-agent@latest
 ```sh
 git clone https://github.com/Waraq-Labs/review-for-agent.git
 cd review-for-agent
-go build -o review-for-agent .
+make setup
+make build
 ```
+
+### Development
+
+```sh
+# terminal 1
+make dev-api
+
+# terminal 2
+make dev-web
+```
+
+`make dev-web` runs Vite and proxies `/api/*` to `http://localhost:4000`.
 
 ## Usage
 
@@ -82,6 +95,34 @@ Paste that into your AI agent's chat to have it address your feedback.
 ### Port selection
 
 The server tries port 4000 first, then increments until it finds a free port.
+
+### Ignore paths with `.rfaignore`
+
+If there are paths you never want in local review diffs (for example generated frontend bundles), add a `.rfaignore` file at repo root.
+
+Example:
+
+```gitignore
+frontend/build/
+```
+
+`review-for-agent` reads `.rfaignore` at startup and excludes matching paths when generating tracked and untracked diffs.
+Use one pattern per line. Empty lines and lines beginning with `#` are ignored.
+
+Lockfiles are always excluded by the server, even if they are not listed in `.rfaignore`:
+- `package-lock.json`
+- `pnpm-lock.yaml`
+
+## Build Commands
+
+| Command | Description |
+|------|-------------|
+| `make setup` | Install frontend dependencies (`pnpm install`) |
+| `make dev-api` | Run Go API/server (`go run . --no-open`) |
+| `make dev-web` | Run Vite dev server |
+| `make build-frontend` | Build `frontend/build` bundle |
+| `make build` | Build frontend then build Go binary |
+| `make verify-frontend-build` | Rebuild frontend and fail if `frontend/build` differs from git state |
 
 ## Output
 

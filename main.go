@@ -13,6 +13,15 @@ func main() {
 	noOpen := flag.Bool("no-open", false, "suppress auto-opening the browser")
 	flag.Parse()
 
+	ignoreCount, err := configureRFAIgnore(".rfaignore")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load .rfaignore: %v\n", err)
+		os.Exit(1)
+	}
+	if ignoreCount > 0 {
+		fmt.Printf("Loaded %d .rfaignore pattern(s)\n", ignoreCount)
+	}
+
 	port, err := freePort()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to find free port: %v\n", err)

@@ -1,0 +1,4 @@
+# Paths excluded from review-for-agent diff generation.
+# Format: one pattern per line, '#' comments, trailing slash for directories.
+
+frontend/build/

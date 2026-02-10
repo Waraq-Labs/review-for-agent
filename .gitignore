@@ -1,2 +1,5 @@
 reviews-for-agent
+review-for-agent
 rfa/
+frontend/node_modules/
+.pnpm-store/

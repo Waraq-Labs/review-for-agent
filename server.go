@@ -6,14 +6,14 @@ import (
 	"net/http"
 )
 
-//go:embed web
-var webFS embed.FS
+//go:embed all:frontend/build
+var frontendBuildFS embed.FS
 
 func startServer(addr string) error {
 	mux := http.NewServeMux()
 
-	// Serve static assets (CSS, JS) from embedded web/ directory
-	staticFiles, _ := fs.Sub(webFS, "web")
+	// Serve Vite build assets from embedded frontend/build directory
+	staticFiles, _ := fs.Sub(frontendBuildFS, "frontend/build")
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFiles))))
 
 	mux.HandleFunc("GET /review", handleReview)
@@ -31,7 +31,7 @@ func startServer(addr string) error {
 }
 
 func handleReview(w http.ResponseWriter, r *http.Request) {
-	data, err := fs.ReadFile(webFS, "web/review.html")
+	data, err := fs.ReadFile(frontendBuildFS, "frontend/build/index.html")
 	if err != nil {
 		http.Error(w, "Failed to load review page", http.StatusInternalServerError)
 		return
