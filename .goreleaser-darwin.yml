@@ -5,10 +5,15 @@ builds:
     env:
       - CGO_ENABLED=0
     goos:
-      - linux
+      - darwin
     goarch:
-      - amd64
       - arm64
+
+signs:
+  - cmd: gon
+    args:
+      - gon.hcl
+    artifacts: darwin
 
 archives:
   - format: tar.gz
@@ -17,12 +22,13 @@ archives:
       - LICENSE
 
 checksum:
-  name_template: checksums.txt
+  disable: true
 
 changelog:
-  sort: asc
+  disable: true
 
 release:
   github:
     owner: Waraq-Labs
     name: review-for-agent
+  mode: append
