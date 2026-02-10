@@ -24,6 +24,30 @@ After an AI coding agent edits files in your repo, there's no lightweight way to
 
 ## Install
 
+### Binary releases
+
+Download the latest binary for your platform from the [GitHub Releases](https://github.com/Waraq-Labs/review-for-agent/releases) page.
+
+```sh
+# macOS (Apple Silicon)
+tar -xzf review-for-agent_*_darwin_arm64.tar.gz
+
+# Linux (x86_64)
+tar -xzf review-for-agent_*_linux_amd64.tar.gz
+
+# Linux (ARM64)
+tar -xzf review-for-agent_*_linux_arm64.tar.gz
+
+# Move to a directory on your PATH
+mv review-for-agent /usr/local/bin/
+```
+
+> **macOS note:** If macOS blocks the binary with a "can't verify" warning, remove the quarantine attribute:
+> ```sh
+> xattr -d com.apple.quarantine review-for-agent
+> ```
+> If running this makes you uncomfortable, follow the directions to build from source below.
+
 ### From source
 
 Requires [Go 1.23+](https://go.dev/dl/).
