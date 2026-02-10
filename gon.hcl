@@ -1,4 +1,4 @@
-source = ["./dist/review-for-agent_darwin_arm64/review-for-agent"]
+source = ["./dist/review-for-agent_darwin_arm64_v8.0/review-for-agent"]
 
 bundle_id = "com.waraq-labs.review-for-agent"
 
