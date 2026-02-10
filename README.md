@@ -29,7 +29,7 @@ After an AI coding agent edits files in your repo, there's no lightweight way to
 Requires [Go 1.23+](https://go.dev/dl/).
 
 ```sh
-go install github.com/Waraq-Labs/review-for-agent@v0.2.1
+go install github.com/Waraq-Labs/review-for-agent@v0.2.2
 ```
 
 ### Build locally
