@@ -42,11 +42,11 @@ tar -xzf review-for-agent_*_linux_arm64.tar.gz
 mv review-for-agent /usr/local/bin/
 ```
 
-> **macOS note:** If macOS blocks the binary with a "can't verify" warning, remove the quarantine attribute:
+> **macOS note:** The macOS binary is not yet notarized, so Gatekeeper will show a "can't verify" warning. Remove the quarantine attribute to run it:
 > ```sh
 > xattr -d com.apple.quarantine review-for-agent
 > ```
-> If running this makes you uncomfortable, follow the directions to build from source below.
+> Notarized binaries are coming soon. If running this makes you uncomfortable, follow the directions to build from source below.
 
 ### From source
 
