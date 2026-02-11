@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ $# -ne 1 ]; then
-    echo "Usage: $0 <version>"
-    echo "Example: $0 v0.3.0"
-    exit 1
-fi
+echo "Last 5 releases:"
+git tag --sort=-v:refname | head -5 | sed 's/^/  /'
+echo ""
 
-VERSION="$1"
+LATEST=$(git tag --sort=-v:refname | head -1)
+read -rp "New version (latest ${LATEST:-none}): " VERSION
 
 if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "Error: version must match vX.Y.Z (e.g. v0.3.0)"
