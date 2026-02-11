@@ -4,3 +4,6 @@ rfa/
 frontend/node_modules/
 .pnpm-store/
 .DS_Store
+.envrc
+dist-test
+releases
