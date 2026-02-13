@@ -1,3 +1,4 @@
 - Get updated diff by triggering in the UI - the app becomes long running.
 - CLI that allows the agent to get 1 comment at a time and allows marking it as done.
 - Grouping comments together. I often comment about the same thing in different files, e.g. on the definition & the usage.
+- Allow using jj
