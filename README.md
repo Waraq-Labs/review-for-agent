@@ -30,23 +30,18 @@ Download the latest binary for your platform from the [GitHub Releases](https://
 
 ```sh
 # macOS (Apple Silicon)
-tar -xzf review-for-agent_*_darwin_arm64.tar.gz
+# This creates: dist/review-for-agent-darwin-arm64
+unzip review-for-agent_darwin_arm64.zip
+mv dist/review-for-agent-darwin-arm64 /usr/local/bin/review-for-agent
 
 # Linux (x86_64)
 tar -xzf review-for-agent_*_linux_amd64.tar.gz
+mv review-for-agent /usr/local/bin/
 
 # Linux (ARM64)
 tar -xzf review-for-agent_*_linux_arm64.tar.gz
-
-# Move to a directory on your PATH
 mv review-for-agent /usr/local/bin/
 ```
-
-> **macOS note:** The macOS binary is not yet notarized, so Gatekeeper will show a "can't verify" warning. Remove the quarantine attribute to run it:
-> ```sh
-> xattr -d com.apple.quarantine review-for-agent
-> ```
-> Notarized binaries are coming soon. If running this makes you uncomfortable, follow the directions to build from source below.
 
 ### From source
 
