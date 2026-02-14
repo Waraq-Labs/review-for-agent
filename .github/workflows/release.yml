@@ -80,10 +80,68 @@ jobs:
           make setup
           make build-frontend
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          version: latest
-          args: release --clean -f .goreleaser-darwin.yml
+      - name: Build Darwin binary
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o dist/review-for-agent-darwin-arm64 .
+
+      - name: Import Apple certificate
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-keychain
+        run: |
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 -d > certificate.p12
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security list-keychains -d user -s build.keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | awk -F '"' '/Developer ID Application/{print $2; exit}')
+          if [ -z "$SIGNING_IDENTITY" ]; then
+            echo "Developer ID Application identity not found in certificate"
+            exit 1
+          fi
+          echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
+
+          rm -f certificate.p12
+
+      - name: Codesign binary
+        run: |
+          BIN=dist/review-for-agent-darwin-arm64
+          codesign --force --options runtime --timestamp \
+            --sign "$SIGNING_IDENTITY" \
+            --identifier "com.waraq-labs.review-for-agent" \
+            "$BIN"
+          codesign --verify --strict --verbose=2 "$BIN"
+
+      - name: Create zip for notarization
+        run: |
+          ditto -c -k --keepParent dist/review-for-agent-darwin-arm64 dist/review-for-agent_darwin_arm64.zip
+
+      - name: Notarize zip
+        env:
+          AC_USERNAME: ${{ secrets.AC_USERNAME }}
+          AC_PASSWORD: ${{ secrets.AC_PASSWORD }}
+          AC_TEAM_ID: ${{ secrets.AC_TEAM_ID }}
+        run: |
+          xcrun notarytool submit dist/review-for-agent_darwin_arm64.zip \
+            --apple-id "$AC_USERNAME" \
+            --password "$AC_PASSWORD" \
+            --team-id "$AC_TEAM_ID" \
+            --wait
+
+      - name: Upload notarized zip to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" dist/review-for-agent_darwin_arm64.zip --clobber
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain build.keychain || true
