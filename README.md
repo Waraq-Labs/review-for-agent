@@ -53,7 +53,7 @@ mv review-for-agent /usr/local/bin/
 Requires [Go 1.23+](https://go.dev/dl/).
 
 ```sh
-go install github.com/Waraq-Labs/review-for-agent@v0.3.3
+go install github.com/Waraq-Labs/review-for-agent@v0.4.0
 ```
 
 ### Build locally
