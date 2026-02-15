@@ -25,6 +25,7 @@ make build-frontend
 # Run
 ./review-for-agent              # starts server, opens browser
 ./review-for-agent --no-open    # starts server, no browser
+./review-for-agent sample-template              # prints sample markdown to stdout
 
 # Verify generated frontend/build is current
 make verify-frontend-build
@@ -43,7 +44,7 @@ Single Go binary with an embedded web frontend bundle. No Go frameworks, no rout
 
 | File | Responsibility |
 |------|---------------|
-| `main.go` | CLI entry point, `--no-open` flag, port discovery (tries 4000+), browser launch |
+| `main.go` | CLI entry point, `--no-open` flag, `sample-template` utility command, port discovery (tries 4000+), browser launch |
 | `server.go` | HTTP mux: `GET /review`, `GET /api/diff`, `POST /api/comments`, static file serving. Embeds `frontend/build/` via `go:embed` |
 | `diff.go` | Runs `git diff HEAD` + synthesizes diffs for untracked files. Returns unified diff string |
 | `comments.go` | `POST /api/comments` handler. Data model (`Comment`, `SubmitRequest`), JSON/MD file writer, unified diff parser (`parseDiffLines`), MD formatter |

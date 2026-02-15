@@ -105,6 +105,15 @@ Paste that into your AI agent's chat to have it address your feedback.
 |------|-------------|
 | `--no-open` | Don't auto-open the browser (useful when re-running and refreshing an already open tab) |
 
+### Utility command
+
+Use this to quickly render a template sample without going through the web UI:
+
+```sh
+# prints sample markdown to stdout
+review-for-agent sample-template
+```
+
 ### Reviewing changes
 
 1. **Click a line number** to add a single-line comment
@@ -151,36 +160,14 @@ Comments are written to the `rfa/` directory (created if it doesn't exist).
 
 ### Markdown format
 
-The Markdown file is designed to be consumed by AI agents. It includes a preamble explaining the file structure, then comments grouped by file with diff context snippets:
+The Markdown output is generated from `templates/comments.md.tmpl` and is intended for AI-agent consumption.
 
-```markdown
-# Code Review Comments
+The exact wording and layout are intentionally template-defined and may evolve over time.
 
-> **How to read this file:**
-> This file contains review comments on uncommitted changes in this repo.
-> Comments are grouped by file. Each comment includes a line or line range
-> reference and a quoted diff context snippet showing the relevant code.
-> File-level comments (not tied to a specific line) appear under a
-> "(file-level)" heading. A global comment, if present, appears at the top
-> before any file sections.
+`review-for-agent` treats Markdown as a human/agent-readable handoff artifact, not a strict machine contract. For exact current output, use:
 
-Overall, nice progress but a few things to address.
-
-## src/api/handler.ts
-
-### Line 42
-> +  const result = await fetch(url);
-Add error handling here — what happens if the fetch fails?
-
-### Lines 78–85
-> +  if (user.role === 'admin') {
-> +    grantAll(user);
-> +  }
-This grants blanket permissions. Should we scope this to the specific resource?
-
-## src/utils/parse.ts (file-level)
-This file duplicates logic from src/core/parser.ts — consider consolidating.
-```
+- `templates/comments.md.tmpl` (source template)
+- `review-for-agent sample-template` (quick preview)
 
 ### JSON format
 

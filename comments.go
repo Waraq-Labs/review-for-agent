@@ -2,14 +2,21 @@ package main
 
 import (
 	"crypto/sha256"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
+
+//go:embed templates/comments.md.tmpl
+var commentsMarkdownTemplate string
+
+var commentsTemplate = template.Must(template.New("comments").Parse(commentsMarkdownTemplate))
 
 type Comment struct {
 	File      string `json:"file"`
@@ -29,6 +36,25 @@ type SubmitRequest struct {
 	Diff          string    `json:"diff"`
 	GlobalComment string    `json:"globalComment"`
 	Comments      []Comment `json:"comments"`
+}
+
+type markdownFile struct {
+	File  string
+	Items []markdownCommentItem
+}
+
+type markdownCommentItem struct {
+	Index         int
+	Title         string
+	Body          string
+	DiffContext   []string
+	IsLineComment bool
+}
+
+type markdownTemplateData struct {
+	HasGlobal  bool
+	GlobalItem markdownCommentItem
+	Files      []markdownFile
 }
 
 func handleComments(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +95,11 @@ func handleComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mdContent := formatMarkdown(globalComment, comments, diff)
+	mdContent, err := formatMarkdown(globalComment, comments, diff)
+	if err != nil {
+		http.Error(w, "failed to render markdown: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	if err := os.WriteFile(mdPath, []byte(mdContent), 0o644); err != nil {
 		http.Error(w, "failed to write markdown file: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -88,7 +118,7 @@ func handleComments(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func formatMarkdown(globalComment string, comments []Comment, diff string) string {
+func formatMarkdown(globalComment string, comments []Comment, diff string) (string, error) {
 	diffLines := parseDiffLines(diff)
 
 	type fileComments struct {
@@ -113,61 +143,104 @@ func formatMarkdown(globalComment string, comments []Comment, diff string) strin
 		}
 	}
 
-	var sb strings.Builder
-	sb.WriteString("# Code Review Comments\n")
-	sb.WriteString("\n> **How to read this file:**\n")
-	sb.WriteString("> This file contains review comments on uncommitted changes in this repo.\n")
-	sb.WriteString("> Comments are grouped by file. Each comment includes a line or line range\n")
-	sb.WriteString("> reference and a quoted diff context snippet showing the relevant code.\n")
-	sb.WriteString("> File-level comments (not tied to a specific line) appear under a\n")
-	sb.WriteString("> \"(file-level)\" heading. A global comment, if present, appears at the top\n")
-	sb.WriteString("> before any file sections.\n")
+	data := markdownTemplateData{
+		Files: make([]markdownFile, 0, len(ordered)),
+	}
 
+	commentIndex := 0
 	if globalComment != "" {
-		sb.WriteString("\n" + globalComment + "\n")
+		commentIndex++
+		data.HasGlobal = true
+		data.GlobalItem = markdownCommentItem{
+			Index: commentIndex,
+			Title: "Overall review",
+			Body:  globalComment,
+		}
 	}
 
 	for _, file := range ordered {
 		fc := grouped[file]
+		if len(fc.lined) == 0 && len(fc.fileLevel) == 0 {
+			continue
+		}
+
+		mf := markdownFile{File: file}
+
+		for _, c := range fc.fileLevel {
+			commentIndex++
+			mf.Items = append(mf.Items, markdownCommentItem{
+				Index:         commentIndex,
+				Title:         "file-level",
+				Body:          c.Body,
+				IsLineComment: false,
+			})
+		}
 
 		if len(fc.lined) > 0 {
-			sb.WriteString("\n## " + file + "\n")
 			lines := diffLines[file]
 			for _, c := range fc.lined {
-				start := *c.StartLine
-				end := start
-				if c.EndLine != nil {
-					end = *c.EndLine
+				commentIndex++
+				title := commentLineLabel(c)
+				if c.Side != "" {
+					title = title + " (" + c.Side + ")"
 				}
-
-				if start == end {
-					sb.WriteString("\n### Line " + strconv.Itoa(start) + "\n")
-				} else {
-					sb.WriteString("\n### Lines " + strconv.Itoa(start) + "\u2013" + strconv.Itoa(end) + "\n")
-				}
-
-				for _, dl := range lines {
-					lineNo := dl.NewLineNo
-					if c.Side == "left" {
-						lineNo = dl.OldLineNo
-					}
-					if lineNo >= start && lineNo <= end {
-						sb.WriteString("> " + dl.Content + "\n")
-					}
-				}
-				sb.WriteString(c.Body + "\n")
+				mf.Items = append(mf.Items, markdownCommentItem{
+					Index:         commentIndex,
+					Title:         title,
+					Body:          c.Body,
+					DiffContext:   commentDiffContext(c, lines),
+					IsLineComment: true,
+				})
 			}
 		}
 
-		if len(fc.fileLevel) > 0 {
-			sb.WriteString("\n## " + file + " (file-level)\n")
-			for _, c := range fc.fileLevel {
-				sb.WriteString(c.Body + "\n")
-			}
+		if len(mf.Items) > 0 {
+			data.Files = append(data.Files, mf)
 		}
 	}
 
-	return sb.String()
+	var sb strings.Builder
+	if err := commentsTemplate.Execute(&sb, data); err != nil {
+		return "", err
+	}
+	return sb.String(), nil
+}
+
+func commentLineLabel(c Comment) string {
+	start := *c.StartLine
+	end := start
+	if c.EndLine != nil {
+		end = *c.EndLine
+	}
+
+	if start == end {
+		return "Line " + strconv.Itoa(start)
+	}
+
+	return "Lines " + strconv.Itoa(start) + "–" + strconv.Itoa(end)
+}
+
+func commentDiffContext(comment Comment, lines []DiffLine) []string {
+	start := *comment.StartLine
+	end := start
+	if comment.EndLine != nil {
+		end = *comment.EndLine
+	}
+
+	context := make([]string, 0)
+	for _, dl := range lines {
+		lineNo := dl.NewLineNo
+		if comment.Side == "left" {
+			lineNo = dl.OldLineNo
+		}
+		if lineNo >= start && lineNo <= end {
+			context = append(context, dl.Content)
+		}
+	}
+	if len(context) == 0 {
+		context = append(context, "(No matching diff context found for this selection)")
+	}
+	return context
 }
 
 func parseDiffLines(diff string) map[string][]DiffLine {

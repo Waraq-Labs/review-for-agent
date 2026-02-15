@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -10,13 +11,44 @@ import (
 )
 
 func main() {
-	noOpen := flag.Bool("no-open", false, "suppress auto-opening the browser")
-	flag.Parse()
+	if len(os.Args) > 1 && os.Args[1] == "sample-template" {
+		if err := runSampleTemplateCommand(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	args := os.Args[1:]
+	if len(args) > 0 && args[0] == "start" {
+		args = args[1:]
+	}
+
+	if err := runServerCommand(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func runServerCommand(args []string) error {
+	fs := flag.NewFlagSet("review-for-agent", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	noOpen := fs.Bool("no-open", false, "suppress auto-opening the browser")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if fs.NArg() > 0 {
+		if fs.NArg() != 1 || fs.Arg(0) != "start" {
+			return fmt.Errorf("unexpected argument: %s", fs.Arg(0))
+		}
+	}
 
 	ignoreCount, err := configureRFAIgnore(".rfaignore")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load .rfaignore: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to load .rfaignore: %w", err)
 	}
 	if ignoreCount > 0 {
 		fmt.Printf("Loaded %d .rfaignore pattern(s)\n", ignoreCount)
@@ -24,8 +56,7 @@ func main() {
 
 	port, err := freePort()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to find free port: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to find free port: %w", err)
 	}
 
 	addr := fmt.Sprintf(":%d", port)
@@ -39,13 +70,33 @@ func main() {
 	}
 
 	if err := startServer(addr); err != nil {
-		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("server error: %w", err)
 	}
+	return nil
 }
 
-// freePort tries port 4000 first, then increments until a free port is found.
-// This provides a stable default while allowing multiple instances to coexist.
+func runSampleTemplateCommand(args []string) error {
+	fs := flag.NewFlagSet("sample-template", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("unexpected argument: %s", fs.Arg(0))
+	}
+
+	content, err := sampleTemplateMarkdown()
+	if err != nil {
+		return fmt.Errorf("failed to render sample markdown: %w", err)
+	}
+
+	fmt.Print(content)
+	return nil
+}
+
 func freePort() (int, error) {
 	const startPort = 4000
 	const maxAttempts = 100

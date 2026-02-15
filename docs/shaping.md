@@ -47,10 +47,10 @@
 | R9 | Use @pierre/diffs for diff rendering | Must-have |
 | R10 | Built in Go, distributed as single binary | Must-have |
 | R11 | One review round per invocation — enforced client-side (submit button disabled after first submit); server accepts repeated POSTs if page is refreshed | Must-have |
-| R12 | MD output includes diff context snippets so agent can locate each comment | Must-have |
+| R12 | MD output includes enough contextual cues for the agent to locate each comment | Must-have |
 | R13 | Add a global review-level comment not tied to any file | Nice-to-have |
 | R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have |
-| R15 | MD output includes a preamble explaining the comment file structure so the agent knows how to read it | Must-have |
+| R15 | MD output includes brief usage guidance for the receiving agent | Must-have |
 | R16 | On submit, copy the MD file path to clipboard with prefix `review my comments on these changes in @<FILE_PATH>` (repo-root-relative path) | Must-have |
 | R17 | Server tries port 4000 first, then increments by 1 until a free port is found — allows re-running with `--no-open` and refreshing the already open page | Must-have |
 
@@ -66,8 +66,8 @@
 | **A2** | **Git diff engine** — `exec.Command("git", "diff", "HEAD")` captures unified diff as string, served via `GET /api/diff` | |
 | **A3** | **Diff renderer** — React + TypeScript frontend (built by Vite) renders parsed patch files with `@pierre/diffs`, supports unified/split view toggle | |
 | **A4** | **Comment UI** — React state + `@pierre/diffs` line selection/annotation APIs for single-line and range comments, plus header metadata actions for file-level comments | |
-| **A5** | **Submit endpoint** — `POST /api/comments` receives JSON payload with optional global comment and comment array. Server writes `rfa/comments_{hash}.json` and `rfa/comments_{hash}.md`. Returns paths in response, including a `clipboardText` field containing `review my comments on these changes in @<repo-root-relative MD path>`. UI copies this to clipboard. Server logs output paths to terminal | |
-| **A6** | **MD formatter** — Opens with a preamble section explaining the file structure (global comment, per-file sections with line references, diff context snippets, file-level comments). Then global comment rendered as plain text. File comments grouped by file, each with line/range reference, quoted diff context snippet (from unified diff), and comment body. File-level comments under "(file-level)" sub-header | |
+| **A5** | **Submit endpoint** — `POST /api/comments` receives JSON payload with optional global comment, comment array, and unified diff text. Server writes `rfa/comments_{hash}.json` and `rfa/comments_{hash}.md`. Returns paths in response, including a `clipboardText` field containing `review my comments on these changes in @<repo-root-relative MD path>`. UI copies this to clipboard. Server logs output paths to terminal | |
+| **A6** | **MD formatter** — Template-driven via `templates/comments.md.tmpl`: renders a markdown handoff file for humans/agents using submitted comments (and diff-derived context where useful). Template content is intentionally non-contractual and can evolve independently of docs | |
 
 ### Fit Check (R × A)
 
@@ -85,10 +85,10 @@
 | R9 | Use @pierre/diffs for diff rendering | Must-have | ✅ |
 | R10 | Built in Go, distributed as single binary | Must-have | ✅ |
 | R11 | One review round per invocation — enforced client-side (submit button disabled after first submit); server accepts repeated POSTs if page is refreshed | Must-have | ✅ |
-| R12 | MD output includes diff context snippets so agent can locate each comment | Must-have | ✅ |
+| R12 | MD output includes enough contextual cues for the agent to locate each comment | Must-have | ✅ |
 | R13 | Add a global review-level comment not tied to any file | Nice-to-have | ✅ |
 | R14 | CLI flag to suppress auto-opening the browser (`--no-open`) | Nice-to-have | ✅ |
-| R15 | MD output includes a preamble explaining the comment file structure so the agent knows how to read it | Must-have | ✅ |
+| R15 | MD output includes brief usage guidance for the receiving agent | Must-have | ✅ |
 | R16 | On submit, copy the MD file path to clipboard with prefix `review my comments on these changes in @<FILE_PATH>` (repo-root-relative path) | Must-have | ✅ |
 | R17 | Server tries port 4000 first, then increments by 1 until a free port is found — allows re-running with `--no-open` and refreshing the already open page | Must-have | ✅ |
 
@@ -96,6 +96,7 @@
 
 ```
 ReviewSubmission {
+  diff:          string          // unified diff text available to markdown rendering as needed
   globalComment: string | null   // review-level comment, not tied to any file
   comments:      Comment[]       // file/line comments
 }
@@ -111,34 +112,14 @@ Comment {
 
 ### MD Output Format
 
-```markdown
-# Code Review Comments
+Markdown output is template-driven (`templates/comments.md.tmpl`).
 
-> **How to read this file:**
-> This file contains review comments on uncommitted changes in this repo.
-> Comments are grouped by file. Each comment includes a line or line range
-> reference and a quoted diff context snippet showing the relevant code.
-> File-level comments (not tied to a specific line) appear under a
-> "(file-level)" heading. A global comment, if present, appears at the top
-> before any file sections.
+This document intentionally does not define markdown field-level structure. The markdown file is a human/agent-facing handoff artifact and may change wording/sectioning without corresponding shaping-doc updates.
 
-Overall, nice progress but a few things to address before this is ready.
-
-## src/api/handler.ts
-
-### Line 42
-> +  const result = await fetch(url);
-Add error handling here — what happens if the fetch fails?
-
-### Lines 78-85
-> +  if (user.role === 'admin') {
-> +    grantAll(user);
-> +  }
-This grants blanket permissions. Should we scope this to the specific resource?
-
-## src/utils/parse.ts (file-level)
-This file duplicates logic from src/core/parser.ts — consider consolidating.
-```
+Stable expectation:
+- A markdown file is produced alongside JSON on submit.
+- It contains the review comments in a readable format appropriate for agents and humans.
+- Template and rendered sample are the canonical references when iterating on presentation.
 
 ---
 
@@ -215,21 +196,21 @@ This file duplicates logic from src/core/parser.ts — consider consolidating.
 **What we build:**
 - Global comment textarea at the bottom of the page, near the Submit button — for review-level feedback not tied to any file
 - "Submit Review" button fixed at the bottom of the page (visible comment count badge)
-- On click, POST global comment + all comments as JSON to `POST /api/comments`
-- Go server receives the comments, generates a short hash (first 4 bytes of SHA256 of timestamp)
+- On click, POST global comment + all comments + current diff as JSON to `POST /api/comments`
+- Go server receives the payload, generates a short hash (first 4 bytes of SHA256 of timestamp)
 - Writes `rfa/comments_{hash}.json` (raw structured data)
-- Writes `rfa/comments_{hash}.md` (agent-friendly format with preamble + diff context snippets)
+- Writes `rfa/comments_{hash}.md` (template-driven markdown handoff for agents/humans)
 - Server logs the output paths to the terminal
 - Returns the file paths in the HTTP response, plus a `clipboardText` field: `review my comments on these changes in @<repo-root-relative MD path>`
 - UI copies `clipboardText` to the clipboard and shows a success message with the paths
-- MD formatter: opens with a preamble blockquote explaining the file structure, then renders global comment at the top, then parses the unified diff to extract context lines around each comment's line reference
+- MD formatter renders template-defined markdown from submitted comments and diff data
 
 **Key decisions:**
 - `rfa/` directory created automatically if it doesn't exist
-- MD formatter needs access to the original unified diff to pull context snippets — server caches the diff output from V1
+- Server uses submitted unified diff when template rendering needs additional context
+- Exact Markdown wording/layout lives in `templates/comments.md.tmpl` (docs describe contract only)
 - After successful submit, disable the Submit button and show "Review submitted" state
 - Server does NOT shut down after submit — user closes it manually (Ctrl+C)
 - Clipboard copy uses the browser `navigator.clipboard.writeText()` API
-- The MD preamble is a blockquote explaining: comments grouped by file, line/range references, diff context snippets, file-level comments, and global comment placement
 
-**Demo:** Add a few comments (single-line, range, file-level). Type a global comment. Click Submit Review. Check terminal — paths are logged. Paste from clipboard — see `review my comments on these changes in @rfa/comments_5ae2.md`. Open the MD file — preamble at the top, then global comment, then comments grouped by file with diff context snippets. Open the JSON — structured data.
+**Demo:** Add a few comments (single-line, range, file-level). Type a global comment. Click Submit Review. Check terminal — paths are logged. Paste from clipboard — see `review my comments on these changes in @rfa/comments_5ae2.md`. Open the MD file and verify it is readable and includes the submitted feedback. Open the JSON — structured data.

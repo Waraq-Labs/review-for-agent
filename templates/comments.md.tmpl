@@ -1,0 +1,39 @@
+# Code Review Comments
+
+Use this checklist to address each review comment.
+For every numbered item, provide an agent response with:
+- Interpretation
+- Response
+- Status (`addressed`, `partially addressed`, or `deferred`)
+
+Keep the same numbering so reviewers can confirm each item was handled.
+{{- if .HasGlobal }}
+
+## Global review
+
+[{{ .GlobalItem.Index }}] {{ .GlobalItem.Title }}
+Comment:
+{{ .GlobalItem.Body }}
+{{- end }}
+{{- range .Files }}
+
+## {{ .File }}
+{{- range $i, $item := .Items }}
+{{- if gt $i 0 }}
+
+---
+{{- end }}
+
+[{{ $item.Index }}] {{ $item.Title }}
+{{- if $item.IsLineComment }}
+Diff context:
+```diff
+{{- range $item.DiffContext }}
+{{ . }}
+{{- end }}
+```
+{{- end }}
+Comment:
+{{ $item.Body }}
+{{- end }}
+{{- end }}
