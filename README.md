@@ -114,6 +114,13 @@ Use this to quickly render a template sample without going through the web UI:
 review-for-agent sample-template
 ```
 
+### PI extension
+
+If you use [pi](https://github.com/badlogic/pi-mono), install/load the PI extension from
+`https://github.com/theonejb/pi-extensions/blob/main/review-for-agent.ts` and run `/reload`.
+
+The extension auto-starts `review-for-agent` in Git repos and adds `/rfa-open` to quickly jump back to the active review session in the browser.
+
 ### Reviewing changes
 
 1. **Click a line number** to add a single-line comment
