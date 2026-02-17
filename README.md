@@ -84,6 +84,14 @@ Listening on localhost:4000
 Opening http://localhost:4000/review
 ```
 
+To bind to a specific host, set `RFA_HOST`.
+
+```
+$ RFA_HOST=0.0.0.0 review-for-agent
+Listening on 0.0.0.0:4000
+Opening http://localhost:4000/review
+```
+
 Your browser opens with a diff of all uncommitted changes. Leave comments, then click **Submit Review**.
 
 ```
@@ -104,6 +112,11 @@ Paste that into your AI agent's chat to have it address your feedback.
 | Flag | Description |
 |------|-------------|
 | `--no-open` | Don't auto-open the browser (useful when re-running and refreshing an already open tab) |
+
+### Environment variables
+
+- `RFA_HOST`: IP/interface to bind the server to. Defaults to all interfaces.
+  - Set `RFA_HOST=0.0.0.0` to allow access from other machines on your network.
 
 ### Utility command
 

@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
+	"strings"
 )
 
 func main() {
@@ -54,15 +56,26 @@ func runServerCommand(args []string) error {
 		fmt.Printf("Loaded %d .rfaignore pattern(s)\n", ignoreCount)
 	}
 
-	port, err := freePort()
+	host := strings.TrimSpace(os.Getenv("RFA_HOST"))
+
+	port, err := freePort(host)
 	if err != nil {
 		return fmt.Errorf("failed to find free port: %w", err)
 	}
 
-	addr := fmt.Sprintf(":%d", port)
-	url := fmt.Sprintf("http://localhost:%d/review", port)
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
+	printHost := host
+	displayHost := host
+	if host == "" {
+		printHost = "localhost"
+		displayHost = "localhost"
+	} else if host == "0.0.0.0" {
+		displayHost = "localhost"
+	}
+	displayAddr := net.JoinHostPort(displayHost, strconv.Itoa(port))
+	url := fmt.Sprintf("http://%s/review", displayAddr)
 
-	fmt.Printf("Listening on localhost%s\n", addr)
+	fmt.Printf("Listening on %s\n", net.JoinHostPort(printHost, strconv.Itoa(port)))
 
 	if !*noOpen {
 		fmt.Printf("Opening %s\n", url)
@@ -97,11 +110,12 @@ func runSampleTemplateCommand(args []string) error {
 	return nil
 }
 
-func freePort() (int, error) {
+func freePort(host string) (int, error) {
 	const startPort = 4000
 	const maxAttempts = 100
 	for port := startPort; port < startPort+maxAttempts; port++ {
-		l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		addr := net.JoinHostPort(host, strconv.Itoa(port))
+		l, err := net.Listen("tcp", addr)
 		if err != nil {
 			continue
 		}
