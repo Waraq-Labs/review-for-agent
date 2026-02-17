@@ -23,7 +23,13 @@ if git rev-parse "$VERSION" >/dev/null 2>&1; then
     exit 1
 fi
 
-sed -i '' "s|go install github.com/Waraq-Labs/review-for-agent@v[0-9]*\.[0-9]*\.[0-9]*|go install github.com/Waraq-Labs/review-for-agent@${VERSION}|" README.md
+if sed --version >/dev/null 2>&1; then
+    # GNU sed
+    sed -i "s|go install github.com/Waraq-Labs/review-for-agent@v[0-9]*\.[0-9]*\.[0-9]*|go install github.com/Waraq-Labs/review-for-agent@${VERSION}|" README.md
+else
+    # BSD/macOS sed
+    sed -i '' "s|go install github.com/Waraq-Labs/review-for-agent@v[0-9]*\.[0-9]*\.[0-9]*|go install github.com/Waraq-Labs/review-for-agent@${VERSION}|" README.md
+fi
 
 CHANGED=$(git status --porcelain -- README.md)
 if [ -z "$CHANGED" ]; then
