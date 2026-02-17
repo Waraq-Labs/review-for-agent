@@ -24,6 +24,27 @@ function isPrimarySubmitHotkey(event: { key: string; metaKey: boolean; ctrlKey: 
   return event.key === "Enter" && (event.metaKey || event.ctrlKey);
 }
 
+function copyTextWithLegacyApi(text: string): boolean {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+
+  return copied;
+}
+
 function formatLineRef(startLine: number | null, endLine: number | null): string {
   if (startLine === null) {
     return "(file-level)";
@@ -400,8 +421,11 @@ export default function App() {
 
   const [submitted, setSubmitted] = useState(false);
   const [submittedText, setSubmittedText] = useState<string | null>(null);
+  const [submittedMdPath, setSubmittedMdPath] = useState<string | null>(null);
+  const [clipboardText, setClipboardText] = useState<string | null>(null);
   const fileSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const globalCommentRef = useRef<HTMLTextAreaElement | null>(null);
+  const isSecureContext = typeof window !== "undefined" && window.isSecureContext;
 
   useEffect(() => {
     let cancelled = false;
@@ -561,6 +585,34 @@ export default function App() {
     fileSectionRefs.current[key] = node;
   }, []);
 
+  const handleManualCopy = useCallback(async () => {
+    if (!clipboardText) {
+      return;
+    }
+
+    let copied = false;
+
+    if (isSecureContext && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(clipboardText);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+    } else {
+      copied = copyTextWithLegacyApi(clipboardText);
+    }
+
+    if (!copied) {
+      window.alert("Copy failed. Please copy the text manually from the markdown file.");
+      return;
+    }
+
+    if (submittedMdPath) {
+      setSubmittedText(`Review submitted - ${submittedMdPath} (copied to clipboard)`);
+    }
+  }, [clipboardText, isSecureContext, submittedMdPath]);
+
   const handleSubmit = async () => {
     const trimmedGlobal = globalCommentRef.current?.value.trim() ?? "";
     if (comments.length === 0 && trimmedGlobal.length === 0) {
@@ -584,14 +636,16 @@ export default function App() {
       });
 
       setSubmitted(true);
+      setSubmittedMdPath(response.mdPath);
+      setClipboardText(response.clipboardText ?? null);
       setSubmittedText(`Review submitted - ${response.mdPath}`);
 
-      if (response.clipboardText && navigator.clipboard) {
+      if (response.clipboardText && isSecureContext && navigator.clipboard) {
         try {
           await navigator.clipboard.writeText(response.clipboardText);
           setSubmittedText(`Review submitted - ${response.mdPath} (copied to clipboard)`);
         } catch {
-          // Ignore clipboard failures.
+          setSubmittedText(`Review submitted - ${response.mdPath}`);
         }
       }
     } catch (submitError: unknown) {
@@ -711,6 +765,15 @@ export default function App() {
         ) : null}
         <div className="submit-bar-actions">
           <span className="comment-count">{submitText}</span>
+          {submitted && !isSecureContext && clipboardText ? (
+            <button
+              className="rfa-btn rfa-btn-cancel"
+              onClick={() => void handleManualCopy()}
+              type="button"
+            >
+              Copy prompt text
+            </button>
+          ) : null}
           <button
             className="rfa-btn rfa-btn-save submit-btn"
             disabled={submitted}
